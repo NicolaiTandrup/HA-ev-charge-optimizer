@@ -1,0 +1,22 @@
+name: Tests
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14.8'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: astral-sh/setup-uv@v6
+      - run: uv venv && uv pip sync --require-hashes requirements-dev.lock
+      - run: uv run --no-project ruff check custom_components tests
+      - run: uv run --no-project ruff format --check custom_components tests
+      - run: uv run --no-project pytest --cov=custom_components.ev_charge_optimizer --cov-fail-under=90

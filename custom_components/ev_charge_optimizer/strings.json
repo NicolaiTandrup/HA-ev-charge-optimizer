@@ -1,0 +1,115 @@
+{
+  "title": "EV Charge Optimizer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add read-only charging site",
+        "description": "No charging commands or charge-limit changes will be sent. Add vehicles using Configure after creating the site.",
+        "data": {
+          "name": "Site name",
+          "timezone": "Site timezone",
+          "price_entity": "Price sensor",
+          "price_attribute": "Timestamped price attribute (slots or raw_today)",
+          "price_multiplier": "Multiplier to currency/kWh (MWh: 0.001)",
+          "grid_kw": "Available site charging capacity (kW)",
+          "tolerance": "Equivalent price tolerance (currency/kWh)",
+          "stale_minutes": "Maximum source age (minutes)",
+          "margin_minutes": "Long-trip safety margin (minutes)",
+          "boost_enabled": "Simulate Cheap Boost",
+          "boost_threshold": "Cheap Boost threshold (currency/kWh)",
+          "boost_target": "Cheap Boost target (%)",
+          "currency": "Price currency (ISO code, e.g. DKK)"
+        }
+      }
+    },
+    "error": {
+      "invalid_timezone": "Enter an IANA timezone, for example Europe/Copenhagen.",
+      "location_value_required": "Provide an exact location value for this site."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "menu_options": {
+          "site": "Edit site",
+          "add_vehicle": "Add vehicle",
+          "edit_vehicle": "Edit vehicle",
+          "remove_vehicle": "Remove vehicle"
+        }
+      },
+      "site": {
+        "title": "Site settings",
+        "data": {
+          "name": "Site name",
+          "timezone": "Site timezone",
+          "price_entity": "Price sensor",
+          "price_attribute": "Timestamped price attribute (slots or raw_today)",
+          "price_multiplier": "Multiplier to currency/kWh (MWh: 0.001)",
+          "grid_kw": "Available site charging capacity (kW)",
+          "tolerance": "Equivalent price tolerance (currency/kWh)",
+          "stale_minutes": "Maximum source age (minutes)",
+          "margin_minutes": "Long-trip safety margin (minutes)",
+          "boost_enabled": "Simulate Cheap Boost",
+          "boost_threshold": "Cheap Boost threshold (currency/kWh)",
+          "boost_target": "Cheap Boost target (%)",
+          "currency": "Price currency (ISO code, e.g. DKK)"
+        }
+      },
+      "add_vehicle": {
+        "title": "Add vehicle",
+        "data": {
+          "name": "Vehicle name",
+          "soc_entity": "Battery level (%)",
+          "target_entity": "Live charge limit (%)",
+          "connected_entity": "Cable connected",
+          "charging_entity": "Charging state",
+          "power_entity": "Actual charging power (W or kW)",
+          "capacity_kwh": "Usable battery capacity (kWh)",
+          "max_kw": "Maximum AC power (kW)",
+          "efficiency": "AC to battery efficiency (0\u20131)",
+          "location_entity": "Location entity (optional)",
+          "location_value": "Exact location at this site",
+          "deadline_entity": "Offset-aware deadline timestamp sensor (optional)",
+          "odometer_entity": "Odometer (km or mi, optional)"
+        }
+      },
+      "vehicle": {
+        "title": "Edit vehicle",
+        "data": {
+          "name": "Vehicle name",
+          "soc_entity": "Battery level (%)",
+          "target_entity": "Live charge limit (%)",
+          "connected_entity": "Cable connected",
+          "charging_entity": "Charging state",
+          "power_entity": "Actual charging power (W or kW)",
+          "capacity_kwh": "Usable battery capacity (kWh)",
+          "max_kw": "Maximum AC power (kW)",
+          "efficiency": "AC to battery efficiency (0\u20131)",
+          "location_entity": "Location entity (optional)",
+          "location_value": "Exact location at this site",
+          "deadline_entity": "Offset-aware deadline timestamp sensor (optional)",
+          "odometer_entity": "Odometer (km or mi, optional)"
+        }
+      },
+      "edit_vehicle": {
+        "title": "Choose vehicle",
+        "data": {
+          "vehicle": "Vehicle"
+        }
+      },
+      "remove_vehicle": {
+        "title": "Remove vehicle",
+        "data": {
+          "vehicle": "Vehicle"
+        }
+      }
+    },
+    "error": {
+      "invalid_timezone": "Enter an IANA timezone, for example Europe/Copenhagen.",
+      "location_value_required": "Provide an exact location value for this site."
+    },
+    "abort": {
+      "no_vehicles": "No vehicles configured."
+    }
+  }
+}
