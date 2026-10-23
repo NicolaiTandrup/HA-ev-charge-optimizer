@@ -33,6 +33,8 @@ before sharing. No telemetry or outbound integration API calls are present.
 This is an installable read-only developer preview, not a stable release or approved
 HACS catalog integration. Before any prerelease announcement:
 
+- Establish an owner-approved distribution license; the baseline repository has no
+  LICENSE file, and this implementation does not assign one on the owner's behalf.
 - Run the added GitHub CI, hassfest and HACS metadata validation; local Python tests
   do not establish those external results.
 - Review forecast assumptions and the data contract with the owners of Honeycomb
