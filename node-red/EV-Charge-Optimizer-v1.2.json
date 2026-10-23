@@ -1,0 +1,1226 @@
+[
+  {
+    "id": "a10f0e0f4bf34c01",
+    "type": "tab",
+    "label": "EV Charge Optimizer v1.2",
+    "disabled": false,
+    "info": "v1.2 adds Home Assistant planned charging-slot display and driven-distance summaries for day/week/month/year, while retaining all v1.1 charging functionality."
+  },
+  {
+    "id": "cmt001",
+    "type": "comment",
+    "z": "a10f0e0f4bf34c01",
+    "name": "EV Charge Optimizer v1.2 – slots + distance history",
+    "info": "Adds HA planned-slot sensor per car and odometer-delta distance tracking with daily/weekly/monthly/yearly utility meters per car and combined. Retains v1.1 health-window fix, Cheap Boost, executor, watchdog and cost history.",
+    "x": 230,
+    "y": 20,
+    "wires": []
+  },
+  {
+    "id": "inj30",
+    "type": "inject",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Recalculate every 30 min",
+    "props": [
+      {
+        "p": "payload"
+      },
+      {
+        "p": "topic",
+        "vt": "str"
+      }
+    ],
+    "repeat": "1800",
+    "crontab": "",
+    "once": true,
+    "onceDelay": 8,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 120,
+    "y": 60,
+    "wires": [
+      [
+        "price_discover"
+      ]
+    ]
+  },
+  {
+    "id": "injnow",
+    "type": "inject",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Recalculate now",
+    "props": [
+      {
+        "p": "payload"
+      },
+      {
+        "p": "topic",
+        "vt": "str"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 120,
+    "y": 180,
+    "wires": [
+      [
+        "price_discover"
+      ]
+    ]
+  },
+  {
+    "id": "pollbuild",
+    "type": "function",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Build HA snapshot poll",
+    "func": "const entities = [\n  'input_select.ev_charge_optimizer_mode',\n  'input_boolean.ev_charge_optimizer_config_initialized',\n  'input_boolean.ev_site_anemonevej_enabled',\n  'input_boolean.ev_site_ia_moellersvej_enabled',\n  'input_number.ev_site_anemonevej_grid_limit_amps',\n  'input_number.ev_site_ia_moellersvej_grid_limit_amps',\n  'input_text.ev_site_anemonevej_price_source',\n  'input_text.ev_site_ia_moellersvej_price_source',\n  'input_number.ev_charge_long_trip_safety_margin_minutes',\n\n  'input_number.blue_flux_optimizer_battery_capacity_kwh',\n  'input_number.blue_flux_optimizer_max_ac_kw',\n  'input_text.blue_flux_charge_rule_anchor_value',\n  'input_datetime.blue_flux_charge_rule_deadline_value',\n  'input_boolean.blue_flux_optimizer_long_trip_active',\n  'sensor.blue_flux_broker_battery_level',\n  'sensor.blue_flux_broker_charge_limit_actual',\n  'sensor.blue_flux_broker_location',\n  'binary_sensor.blue_flux_broker_charge_cable_connected',\n  'sensor.blue_flux_broker_charger_state',\n  'sensor.blue_flux_battery_level',\n  'number.blue_flux_charge_limit',\n  'device_tracker.blue_flux_location',\n  'binary_sensor.blue_flux_charge_cable',\n  'sensor.blue_flux_charging',\n\n  'input_number.ellingo_optimizer_battery_capacity_kwh',\n  'input_number.ellingo_optimizer_max_ac_kw',\n  'input_text.ellingo_charge_rule_anchor_value',\n  'input_datetime.ellingo_charge_rule_deadline_value',\n  'input_boolean.ellingo_optimizer_long_trip_active',\n  'sensor.ellingo_broker_battery_level',\n  'sensor.ellingo_broker_charge_limit_actual',\n  'sensor.ellingo_broker_location',\n  'binary_sensor.ellingo_broker_charge_cable_connected',\n  'sensor.ellingo_broker_charger_state',\n  'sensor.ellingo_battery_level',\n  'number.ellingo_charge_limit_2',\n  'device_tracker.ellingo_location',\n  'binary_sensor.ellingo_charge_cable',\n  'sensor.ellingo_charging'\n];\n\nconst cycle = `${Date.now()}-${Math.random().toString(16).slice(2)}`;\nflow.set(`evopt_cycle_${cycle}`, { expected: entities.length, received: 0, states: {}, started: Date.now() });\n\nconst requests = entities.map(entity_id => ({\n  _evopt_cycle: cycle,\n  _evopt_entity: entity_id,\n  entity_id\n}));\n\nconst timeout = { _evopt_cycle: cycle, _evopt_timeout: true, payload: Date.now() };\nreturn [requests, timeout];\n",
+    "outputs": 2,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 610,
+    "y": 120,
+    "wires": [
+      [
+        "readstate"
+      ],
+      [
+        "pollwait"
+      ]
+    ]
+  },
+  {
+    "id": "readstate",
+    "type": "api-current-state",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Read HA state dynamic",
+    "server": "27dce734.128628",
+    "version": 3,
+    "outputs": 1,
+    "halt_if": "",
+    "halt_if_type": "str",
+    "halt_if_compare": "is",
+    "entity_id": "{{entity_id}}",
+    "state_type": "str",
+    "blockInputOverrides": false,
+    "outputProperties": [
+      {
+        "property": "payload",
+        "propertyType": "msg",
+        "value": "string",
+        "valueType": "entityState"
+      },
+      {
+        "property": "data",
+        "propertyType": "msg",
+        "value": "",
+        "valueType": "entity"
+      }
+    ],
+    "for": "0",
+    "forType": "num",
+    "forUnits": "minutes",
+    "override_topic": false,
+    "state_location": "payload",
+    "override_payload": "msg",
+    "entity_location": "data",
+    "override_data": "msg",
+    "x": 900,
+    "y": 80,
+    "wires": [
+      [
+        "aggregate"
+      ]
+    ]
+  },
+  {
+    "id": "pollwait",
+    "type": "delay",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Snapshot timeout 5s",
+    "pauseType": "delay",
+    "timeout": "5",
+    "timeoutUnits": "seconds",
+    "rate": "1",
+    "nbRateUnits": "1",
+    "rateUnits": "second",
+    "randomFirst": "1",
+    "randomLast": "5",
+    "randomUnits": "seconds",
+    "drop": false,
+    "allowrate": false,
+    "outputs": 1,
+    "x": 900,
+    "y": 160,
+    "wires": [
+      [
+        "aggregate"
+      ]
+    ]
+  },
+  {
+    "id": "aggregate",
+    "type": "function",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Assemble HA snapshot",
+    "func": "const cycleId = msg._evopt_cycle;\nif (!cycleId) return null;\nconst key = `evopt_cycle_${cycleId}`;\nlet cycle = flow.get(key);\nif (!cycle) return null;\n\nif (!msg._evopt_timeout) {\n    const entity = msg._evopt_entity || msg.entity_id;\n    if (entity) {\n        cycle.states[entity] = {\n            state: msg.payload,\n            attributes: (msg.data && msg.data.attributes) ? msg.data.attributes : {}\n        };\n        cycle.received += 1;\n        flow.set(key, cycle);\n        if (cycle.received < cycle.expected) return null;\n    }\n}\n\nflow.set(key, null);\nreturn {\n    payload: cycle.states,\n    _evopt_cycle: cycleId,\n    _evopt_received: cycle.received,\n    _evopt_expected: cycle.expected,\n    _evopt_timed_out: !!msg._evopt_timeout\n};\n",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1160,
+    "y": 120,
+    "wires": [
+      [
+        "calc"
+      ]
+    ]
+  },
+  {
+    "id": "calc",
+    "type": "function",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Calculate plan + publish slots v1.2",
+    "func": "\n// EV Charge Optimizer v0.4 - price planner + production executor\n// Calculates cheapest non-contiguous 15-minute charge plan.\n// The separate executor node controls Tesla Fleet only when Mode = Production.\n\nconst S = msg.payload || {};\nconst now = new Date();\nconst priceSources = flow.get('evopt_price_sources') || {};\n\nfunction raw(entity) { return S[entity] || null; }\nfunction state(entity) {\n    const x = raw(entity);\n    if (!x) return null;\n    const s = String(x.state ?? '').trim();\n    if (!s || ['unknown','unavailable','none','null'].includes(s.toLowerCase())) return null;\n    return s;\n}\nfunction num(entity) {\n    const s = state(entity);\n    if (s === null) return null;\n    const n = Number(String(s).replace(',','.'));\n    return Number.isFinite(n) ? n : null;\n}\nfunction bool(entity) {\n    const s = state(entity);\n    if (s === null) return null;\n    const v = s.toLowerCase();\n    if (['on','true','yes','connected'].includes(v)) return true;\n    if (['off','false','no','disconnected'].includes(v)) return false;\n    return null;\n}\nfunction firstNumber(list) {\n    for (const e of list) { const n=num(e); if (n!==null) return {value:n,entity:e}; }\n    return {value:null,entity:null};\n}\nfunction firstState(list) {\n    for (const e of list) { const s=state(e); if (s!==null) return {value:s,entity:e}; }\n    return {value:null,entity:null};\n}\nfunction firstBool(list) {\n    for (const e of list) { const b=bool(e); if (b!==null) return {value:b,entity:e}; }\n    return {value:null,entity:null};\n}\nfunction normalizeLocation(s) {\n    return String(s||'').trim().toLowerCase().replace(/_/g,' ').replace(/\\s+/g,' ');\n}\nfunction controlSite(location) {\n    const l=normalizeLocation(location);\n    if (l==='home') return 'anemonevej';\n    if (['i.a. møllersvej','i.a møllersvej','i.a. mollersvej','i.a mollersvej'].includes(l)) return 'ia_moellersvej';\n    return 'none';\n}\nfunction estimationSite(location) {\n    return controlSite(location)==='ia_moellersvej' ? 'ia_moellersvej' : 'anemonevej';\n}\nfunction fmtLocal(d) {\n    const pad=n=>String(n).padStart(2,'0');\n    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;\n}\nfunction parseHaDateTime(v) {\n    if (!v) return null;\n    const d=new Date(String(v).replace(' ','T'));\n    return Number.isFinite(d.getTime()) ? d : null;\n}\nfunction nextClock(hour,minute,base=now) {\n    const d=new Date(base);\n    d.setHours(hour,minute,0,0);\n    if (d<=base) d.setDate(d.getDate()+1);\n    return d;\n}\nfunction addHours(base,h) { return new Date(base.getTime()+h*3600000); }\nfunction bandFor(soc,target) {\n    if (soc===null || target===null) return 'unknown';\n    if (soc>=target) return 'target_reached';\n    if (soc<5) return 'below_5';\n    if (soc<10) return '5_to_10';\n    if (soc<50) return '10_to_50';\n    return 'above_50';\n}\nfunction safeText(v,max=250) {\n    return String(v??'').replace(/[\\r\\n]+/g,' ').replace(/\"/g,\"'\").slice(0,max);\n}\nfunction setNumber(entity_id,value) {\n    return {ha_action:'input_number.set_value',entity_id,value:Number(value)};\n}\nfunction setText(entity_id,value) {\n    return {ha_action:'input_text.set_value',entity_id,value:safeText(value)};\n}\nfunction setDateTime(entity_id,value) {\n    return {ha_action:'input_datetime.set_datetime',entity_id,value:fmtLocal(value)};\n}\nfunction setBool(entity_id,value) {\n    return {ha_action:value?'input_boolean.turn_on':'input_boolean.turn_off',entity_id};\n}\nfunction minDate(a,b) {\n    if (!a) return b;\n    if (!b) return a;\n    return a<b?a:b;\n}\nfunction siteKw(amps) {\n    return amps && amps>0 ? 3*230*amps/1000 : null;\n}\nfunction iso(d) { return d ? d.toISOString() : ''; }\nfunction round2(n) { return Math.round((n+Number.EPSILON)*100)/100; }\n\nfunction plannedSlotsText(plan) {\n    const slots=(plan?.selected||[])\n        .map(x=>({start:new Date(x.start),end:new Date(x.end)}))\n        .filter(x=>Number.isFinite(x.start.getTime())&&Number.isFinite(x.end.getTime())&&x.end>x.start)\n        .sort((a,b)=>a.start-b.start);\n\n    if (!slots.length) return 'none';\n\n    // Merge adjacent selected 15-minute slots into human-friendly ranges.\n    const merged=[];\n    for (const s of slots) {\n        const prev=merged[merged.length-1];\n        if (prev && Math.abs(s.start.getTime()-prev.end.getTime())<=2000) {\n            prev.end=s.end;\n        } else {\n            merged.push({start:new Date(s.start),end:new Date(s.end)});\n        }\n    }\n\n    const pad=n=>String(n).padStart(2,'0');\n    const today=new Date();\n    const sameDay=(a,b)=>a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();\n    const fmtTime=d=>`${pad(d.getHours())}:${pad(d.getMinutes())}`;\n    const fmtDate=d=>`${pad(d.getDate())}/${pad(d.getMonth()+1)}`;\n\n    const pieces=merged.map(r=>{\n        if (sameDay(r.start,today) && sameDay(r.end,r.start)) {\n            return `${fmtTime(r.start)}-${fmtTime(r.end)}`;\n        }\n        if (sameDay(r.start,r.end)) {\n            return `${fmtDate(r.start)} ${fmtTime(r.start)}-${fmtTime(r.end)}`;\n        }\n        return `${fmtDate(r.start)} ${fmtTime(r.start)}-${fmtDate(r.end)} ${fmtTime(r.end)}`;\n    });\n\n    const full=pieces.join(', ');\n    return full.length<=250 ? full : full.slice(0,247)+'...';\n}\n\nconst mode=state('input_select.ev_charge_optimizer_mode') || 'Log only';\nconst configInitialized=bool('input_boolean.ev_charge_optimizer_config_initialized')===true;\nconst marginMin=configInitialized ? (num('input_number.ev_charge_long_trip_safety_margin_minutes') ?? 15) : 15;\n\n// Price differences inside this tolerance are treated as equal.\n// HA stores the value in øre/kWh; real_energy prices are DKK/kWh.\nconst priceToleranceInitialized=bool('input_boolean.ev_charge_price_tolerance_initialized')===true;\nconst priceEqualToleranceOre=priceToleranceInitialized\n    ? (num('input_number.ev_charge_price_equal_tolerance_ore_per_kwh') ?? 0.5)\n    : 0.5;\nconst priceEqualToleranceDkk=Math.max(0,priceEqualToleranceOre)/100;\n\nconst sites={\n    anemonevej:{\n        enabled:configInitialized ? (bool('input_boolean.ev_site_anemonevej_enabled')!==false) : true,\n        amps:configInitialized ? num('input_number.ev_site_anemonevej_grid_limit_amps') : 26,\n        priceSource:configInitialized ? (state('input_text.ev_site_anemonevej_price_source')||'real_energy') : 'real_energy'\n    },\n    ia_moellersvej:{\n        enabled:configInitialized ? (bool('input_boolean.ev_site_ia_moellersvej_enabled')!==false) : true,\n        amps:configInitialized ? num('input_number.ev_site_ia_moellersvej_grid_limit_amps') : 0,\n        priceSource:configInitialized ? (state('input_text.ev_site_ia_moellersvej_price_source')||'real_energy') : 'real_energy'\n    }\n};\n\nconst cars={\n    blue_flux:{\n        name:'Blue Flux',\n        soc:['sensor.blue_flux_broker_battery_level','sensor.blue_flux_battery_level'],\n        target:['sensor.blue_flux_broker_charge_limit_actual','number.blue_flux_charge_limit'],\n        location:['sensor.blue_flux_broker_location','device_tracker.blue_flux_location'],\n        connected:['binary_sensor.blue_flux_broker_charge_cable_connected','binary_sensor.blue_flux_charge_cable'],\n        charging:['sensor.blue_flux_broker_charger_state','sensor.blue_flux_charging'],\n        capacity:'input_number.blue_flux_optimizer_battery_capacity_kwh',\n        maxAc:'input_number.blue_flux_optimizer_max_ac_kw',\n        defaultCapacity:75,\n        defaultMaxAc:11\n    },\n    ellingo:{\n        name:'ElLingo',\n        soc:['sensor.ellingo_broker_battery_level','sensor.ellingo_battery_level'],\n        target:['sensor.ellingo_broker_charge_limit_actual','number.ellingo_charge_limit_2'],\n        location:['sensor.ellingo_broker_location','device_tracker.ellingo_location'],\n        connected:['binary_sensor.ellingo_broker_charge_cable_connected','binary_sensor.ellingo_charge_cable'],\n        charging:['sensor.ellingo_broker_charger_state','sensor.ellingo_charging'],\n        capacity:'input_number.ellingo_optimizer_battery_capacity_kwh',\n        maxAc:'input_number.ellingo_optimizer_max_ac_kw',\n        defaultCapacity:100,\n        defaultMaxAc:16\n    }\n};\n\nconst actions=[];\nconst logs=[];\nconst summaries={};\n\nif (!priceToleranceInitialized) {\n    actions.push(setNumber('input_number.ev_charge_price_equal_tolerance_ore_per_kwh',0.5));\n    actions.push(setBool('input_boolean.ev_charge_price_tolerance_initialized',true));\n}\n\nif (!configInitialized) {\n    actions.push(setBool('input_boolean.ev_site_anemonevej_enabled',true));\n    actions.push(setBool('input_boolean.ev_site_ia_moellersvej_enabled',true));\n    actions.push(setNumber('input_number.ev_site_anemonevej_grid_limit_amps',26));\n    actions.push(setNumber('input_number.ev_site_ia_moellersvej_grid_limit_amps',0));\n    actions.push(setNumber('input_number.ev_charge_long_trip_safety_margin_minutes',15));\n    actions.push(setText('input_text.ev_site_anemonevej_price_source','real_energy'));\n    actions.push(setText('input_text.ev_site_ia_moellersvej_price_source','real_energy'));\n    actions.push(setNumber('input_number.blue_flux_optimizer_battery_capacity_kwh',75));\n    actions.push(setNumber('input_number.blue_flux_optimizer_max_ac_kw',11));\n    actions.push(setNumber('input_number.ellingo_optimizer_battery_capacity_kwh',100));\n    actions.push(setNumber('input_number.ellingo_optimizer_max_ac_kw',16));\n    actions.push(setBool('input_boolean.ev_charge_optimizer_config_initialized',true));\n}\n\n// First pass: collect both cars so site sharing can be estimated.\nconst C={};\nfor (const [key,car] of Object.entries(cars)) {\n    const socPick=firstNumber(car.soc);\n    const targetPick=firstNumber(car.target);\n    const locationPick=firstState(car.location);\n    const connectedPick=firstBool(car.connected);\n    const chargingPick=firstState(car.charging);\n\n    const soc=socPick.value;\n    const target=targetPick.value;\n    const location=locationPick.value;\n    const connected=connectedPick.value===true;\n    const cSite=controlSite(location);\n    const eSite=estimationSite(location);\n    const controlCfg=cSite!=='none'?sites[cSite]:null;\n    const estimateCfg=sites[eSite];\n    const controlEligible=cSite!=='none' && !!controlCfg?.enabled && connected;\n    const capacity=configInitialized ? num(car.capacity) : car.defaultCapacity;\n    const maxAc=configInitialized ? num(car.maxAc) : car.defaultMaxAc;\n    const eSiteKw=siteKw(estimateCfg?.amps);\n    const soloKw=(maxAc && eSiteKw) ? Math.min(maxAc,eSiteKw) : null;\n    const missingKwh=(soc!==null && target!==null && capacity!==null)\n        ? Math.max(0,capacity*Math.max(0,target-soc)/100) : null;\n\n    C[key]={\n        key,car,socPick,targetPick,locationPick,connectedPick,chargingPick,\n        soc,target,location,connected,cSite,eSite,controlCfg,estimateCfg,\n        controlEligible,capacity,maxAc,soloKw,missingKwh,band:bandFor(soc,target)\n    };\n}\n\n// Conservative load-share planning power: if two cars are simultaneously eligible on the\n// same site, reserve an equal site share for each. This prevents optimistic deadline estimates.\nconst eligibleBySite={};\nfor (const st of Object.values(C)) {\n    if (!st.controlEligible || st.soc===null || st.target===null || st.soc>=st.target) continue;\n    if (!eligibleBySite[st.cSite]) eligibleBySite[st.cSite]=[];\n    eligibleBySite[st.cSite].push(st.key);\n}\nfor (const st of Object.values(C)) {\n    const cfg=st.controlCfg;\n    const skw=siteKw(cfg?.amps);\n    const count=(eligibleBySite[st.cSite]||[]).length || 1;\n    st.planningKw=(st.controlEligible && st.maxAc && skw)\n        ? Math.min(st.maxAc,skw/count)\n        : st.soloKw;\n    st.estimateKw=st.controlEligible ? st.planningKw : st.soloKw;\n    st.durationH=(st.estimateKw && st.missingKwh!==null) ? st.missingKwh/st.estimateKw : null;\n    st.estimateValid=st.durationH!==null && Number.isFinite(st.durationH);\n}\n\nfunction prepareSlots(record) {\n    if (!record || !Array.isArray(record.slots)) return [];\n    return record.slots.map((x,i)=>{\n        const s=new Date(x.start);\n        const e=new Date(x.end);\n        const p=Number(x.price);\n        if (!Number.isFinite(s.getTime()) || !Number.isFinite(e.getTime()) || !Number.isFinite(p) || e<=s) return null;\n        return {i,start:s,end:e,price:p};\n    }).filter(Boolean).sort((a,b)=>a.start-b.start);\n}\n\nfunction makePlanner(st,slots,ruleDeadline,longTrip) {\n    const power=st.planningKw;\n    const soc=st.soc;\n    const target=st.target;\n    const capacity=st.capacity;\n    if (!power || !capacity || soc===null || target===null || soc>=target) {\n        return {valid:false,reason:'No usable charging demand/power.',selected:[]};\n    }\n\n    const usable=slots\n        .filter(x=>x.end>now)\n        .map(x=>({\n            ...x,\n            availStart:x.start<now?new Date(now):x.start\n        }))\n        .filter(x=>x.end>x.availStart);\n\n    if (!usable.length) return {valid:false,reason:'No future price slots are available.',selected:[]};\n\n    const alloc=new Map(); // slot index -> planned kWh (cost calculation)\n    const selected=new Set();\n    const stages=[];\n    let failReason='';\n    let finalDeadline=null;\n\n    const energyToPct=(pct)=>capacity*Math.max(0,Math.min(target,pct)-soc)/100;\n    const slotCapUntil=(x,deadline)=>{\n        const e=deadline && deadline<x.end ? deadline : x.end;\n        if (e<=x.availStart) return 0;\n        return power*(e-x.availStart)/3600000;\n    };\n    const allocatedUntil=(deadline)=>{\n        let sum=0;\n        for (const x of usable) {\n            const a=alloc.get(x.i)||0;\n            if (a<=0) continue;\n            sum += Math.min(a,slotCapUntil(x,deadline));\n        }\n        return sum;\n    };\n    const allocate=(requiredCum,deadline,forcedChronological,label)=>{\n        finalDeadline=deadline || finalDeadline;\n        let have=allocatedUntil(deadline);\n        let deficit=Math.max(0,requiredCum-have);\n        if (deficit<=0.0001) {\n            stages.push({label,required:requiredCum,deadline:iso(deadline),ok:true});\n            return true;\n        }\n\n        let candidates=usable.filter(x=>slotCapUntil(x,deadline)>(alloc.get(x.i)||0)+0.000001);\n        if (forcedChronological) {\n            candidates.sort((a,b)=>a.availStart-b.availStart);\n        } else {\n            // Stable price-tolerance ordering:\n            // 1) Find the cheapest remaining price.\n            // 2) Treat every slot <= cheapest + tolerance as the SAME effective price.\n            // 3) Inside that group, always prefer the earliest slot.\n            // 4) Remove that group and repeat for the next price level.\n            //\n            // This avoids the non-transitive comparator problem where A≈B and B≈C,\n            // but A is not≈C, which could make plans change between recalculations.\n            const remaining=[...candidates];\n            const ordered=[];\n            const epsilon=1e-9;\n\n            while (remaining.length) {\n                const minPrice=Math.min(...remaining.map(x=>x.price));\n                const maxEquivalent=minPrice+priceEqualToleranceDkk+epsilon;\n\n                const group=remaining\n                    .filter(x=>x.price<=maxEquivalent)\n                    .sort((a,b)=>\n                        (a.availStart-b.availStart) ||\n                        (a.price-b.price)\n                    );\n\n                ordered.push(...group);\n\n                const groupIds=new Set(group.map(x=>x.i));\n                for (let i=remaining.length-1;i>=0;i--) {\n                    if (groupIds.has(remaining[i].i)) remaining.splice(i,1);\n                }\n            }\n\n            candidates.splice(0,candidates.length,...ordered);\n        }\n\n        for (const x of candidates) {\n            if (deficit<=0.0001) break;\n            const cap=slotCapUntil(x,deadline);\n            const used=alloc.get(x.i)||0;\n            const room=Math.max(0,cap-used);\n            if (!room) continue;\n            const take=Math.min(room,deficit);\n            alloc.set(x.i,used+take);\n            selected.add(x.i);\n            deficit-=take;\n        }\n\n        const ok=deficit<=0.0001;\n        stages.push({label,required:requiredCum,deadline:iso(deadline),ok,remaining:Math.max(0,deficit)});\n        if (!ok && !failReason) failReason=`Insufficient known priced capacity for ${label}.`;\n        return ok;\n    };\n    const selectedEnd=()=>{\n        const arr=usable.filter(x=>selected.has(x.i));\n        return arr.length?new Date(Math.max(...arr.map(x=>x.end.getTime()))):new Date(now);\n    };\n\n    // Stage 1: <5% must charge immediately. Cheapest-price sorting is intentionally disabled.\n    if (soc<5 && target>soc) {\n        const p=Math.min(5,target);\n        const req=energyToPct(p);\n        // Use a generous deadline bounded by available price horizon; chronological allocation makes it immediate.\n        const d=addHours(now,6);\n        allocate(req,d,true,`immediate_to_${p}`);\n    }\n\n    // Stage 2: reach 10% within four hours. If we started below 5%, the 4h window starts\n    // from the estimated completion of the immediate 5% stage.\n    if (soc<10 && target>5) {\n        const p=Math.min(10,target);\n        let d;\n        if (soc<5) d=addHours(selectedEnd(),4);\n        else d=(st.band==='5_to_10' && ruleDeadline)?ruleDeadline:addHours(now,4);\n        allocate(energyToPct(p),d,false,`to_${p}_within_4h`);\n    }\n\n    // Stage 3: reach up to 50% by next 07:00; a long-trip final deadline may be earlier.\n    let reach50=null;\n    if (soc<50 && target>10) {\n        const p=Math.min(50,target);\n        let d=nextClock(7,0,now);\n        if (longTrip && ruleDeadline) {\n            const safe=new Date(ruleDeadline.getTime()-marginMin*60000);\n            d=minDate(d,safe);\n        }\n        allocate(energyToPct(p),d,false,`to_${p}_by_morning`);\n        if (p===50) reach50=selectedEnd();\n    }\n\n    // Final target.\n    if (target>50) {\n        let d;\n        if (longTrip) {\n            d=ruleDeadline ? new Date(ruleDeadline.getTime()-marginMin*60000) : nextClock(6,30,now);\n        } else if (soc>=50 && ruleDeadline) {\n            d=ruleDeadline;\n        } else {\n            d=addHours(reach50 || selectedEnd() || now,24);\n        }\n        allocate(st.missingKwh,d,false,`to_target_${target}`);\n        finalDeadline=d;\n    } else if (!finalDeadline) {\n        // Targets <=50 are completed by their relevant stage above.\n        finalDeadline=selectedEnd();\n    }\n\n    const arr=usable.filter(x=>selected.has(x.i)).sort((a,b)=>a.availStart-b.availStart);\n    const totalAllocated=[...alloc.values()].reduce((a,b)=>a+b,0);\n    const totalCost=arr.reduce((sum,x)=>sum+(alloc.get(x.i)||0)*x.price,0);\n    const coverageEnd=new Date(Math.max(...usable.map(x=>x.end.getTime())));\n    const needCoverageUntil=finalDeadline || selectedEnd();\n    const coverageComplete=coverageEnd>=needCoverageUntil;\n\n    // Unknown future prices are NOT a reason to wait by themselves.\n    // If currently known priced slots can already deliver all required energy,\n    // accept the cheapest known complete plan. We prefer a known good price now\n    // over gambling that tomorrow's unknown price will be cheaper.\n    let complete=stages.every(x=>x.ok);\n    const horizonIncomplete=!!(needCoverageUntil && !coverageComplete);\n\n    const planStart=arr.length?arr[0].availStart:null;\n    const planEnd=arr.length?arr[arr.length-1].end:null;\n\n    // Human/log summary of selected 15-minute periods. Adjacent periods with identical price are merged.\n    const merged=[];\n    for (const x of arr) {\n        const a=alloc.get(x.i)||0;\n        if (a<=0) continue;\n        const prev=merged[merged.length-1];\n        if (prev && prev.end.getTime()===x.availStart.getTime() && Math.abs(prev.price-x.price)<1e-9) {\n            prev.end=x.end;\n            prev.kwh+=a;\n        } else {\n            merged.push({start:x.availStart,end:x.end,price:x.price,kwh:a});\n        }\n    }\n    const compact=merged.map(x=>`${iso(x.start)}..${iso(x.end)} @${x.price.toFixed(4)} (${x.kwh.toFixed(2)}kWh)`).join(' | ');\n\n    const actionable=arr.length>0;\n    let planReason;\n    if (complete && horizonIncomplete) {\n        planReason='Complete plan calculated from currently known prices; unknown future prices are not required to meet the target.';\n    } else if (complete) {\n        planReason='Price plan calculated.';\n    } else if (actionable && horizonIncomplete) {\n        planReason='Known price horizon cannot yet complete the full target. Use the known charging periods now and recalculate when new prices arrive.';\n    } else {\n        planReason=failReason||'Price plan incomplete.';\n    }\n\n    return {\n        valid:complete,\n        actionable,\n        provisional:!complete && actionable,\n        horizonIncomplete,\n        reason:planReason,\n        planStart,planEnd,totalCost,totalAllocated,coverageEnd,finalDeadline,\n        averagePrice:totalAllocated>0?totalCost/totalAllocated:null,\n        selected:arr.map(x=>({\n            start:iso(x.availStart),end:iso(x.end),price:x.price,kwh:round2(alloc.get(x.i)||0)\n        })),\n        compact,\n        stages\n    };\n}\n\nfor (const [key,st] of Object.entries(C)) {\n    const {car}=st;\n    const anchorEntity=`input_text.${key}_charge_rule_anchor_value`;\n    const deadlineEntity=`input_datetime.${key}_charge_rule_deadline_value`;\n    const longTripEntity=`input_boolean.${key}_optimizer_long_trip_active`;\n\n    const previousAnchor=state(anchorEntity)||'none';\n    const previousDeadline=parseHaDateTime(state(deadlineEntity));\n    const previousLongTrip=bool(longTripEntity)===true;\n    const longTrip=st.target!==null && st.target>=85;\n\n    let anchor=previousAnchor;\n    let deadline=previousDeadline;\n\n    if (longTrip) {\n        if (previousAnchor!=='long_trip_0630' || !previousDeadline) {\n            deadline=nextClock(6,30,now);\n            anchor='long_trip_0630';\n        } else anchor='long_trip_0630';\n    } else {\n        if (previousLongTrip || previousAnchor==='long_trip_0630') {\n            anchor='none';\n            deadline=null;\n        }\n\n        if (st.band==='target_reached' || st.band==='unknown') {\n            anchor=st.band;\n            deadline=null;\n        } else if (st.band==='below_5') {\n            if (anchor!=='below_5_immediate' || !deadline) {\n                anchor='below_5_immediate';\n                deadline=new Date(now);\n            }\n        } else if (!st.controlEligible) {\n            anchor=`${st.band}_waiting_for_site`;\n            deadline=null;\n        } else if (st.band==='5_to_10') {\n            if (anchor!=='5_to_10_4h' || !deadline) {\n                anchor='5_to_10_4h';\n                deadline=addHours(now,4);\n            }\n        } else if (st.band==='10_to_50') {\n            if (anchor!=='10_to_50_0700' || !deadline) {\n                anchor='10_to_50_0700';\n                deadline=nextClock(7,0,now);\n            }\n        } else if (st.band==='above_50') {\n            if (anchor!=='above_50_24h' || !deadline) {\n                anchor='above_50_24h';\n                deadline=addHours(now,24);\n            }\n        }\n    }\n\n    const priceSource=st.estimateCfg?.priceSource || 'unknown';\n    const priceRecord=priceSources[priceSource];\n    const slots=prepareSlots(priceRecord);\n\n    let plan=null;\n    if (st.controlEligible && st.estimateValid && st.band!=='target_reached' && slots.length) {\n        plan=makePlanner(st,slots,deadline,longTrip);\n    }\n\n    let optState='planning';\n    let reason='';\n\n    if (mode==='Disabled') {\n        optState='disabled';\n        reason='Optimizer mode is Disabled.';\n    } else if (st.soc===null || st.target===null || st.location===null) {\n        optState='vehicle_data_missing';\n        reason='Missing SoC, target or location data.';\n    } else if (st.band==='target_reached') {\n        optState='target_reached';\n        reason=`SoC ${st.soc}% is at or above target ${st.target}%.`;\n    } else if (!st.controlEligible) {\n        optState=st.cSite==='none'?'away':'not_connected';\n        reason=st.cSite==='none'\n            ? `No exact control site match for location '${st.location}'. Estimation uses ${st.eSite}.`\n            : `Car is at ${st.cSite}, but the charge cable is not reported connected.`;\n    } else if (!st.estimateValid) {\n        optState='estimate_unavailable';\n        reason='Missing usable battery capacity, max AC power or site grid limit.';\n    } else if (!slots.length) {\n        optState='waiting_for_price_adapter';\n        reason=`No normalized 15-minute '${priceSource}' slots are cached yet.`;\n    } else if (plan && plan.valid) {\n        optState=longTrip?'plan_ready_long_trip':'plan_ready';\n        reason=`${plan.reason} ${plan.selected.length} slots, first ${iso(plan.planStart)}, end ${iso(plan.planEnd)}, est. ${round2(plan.totalCost)} DKK.`;\n    } else if (plan && plan.actionable && plan.horizonIncomplete) {\n        const cov=plan.coverageEnd?iso(plan.coverageEnd):'unknown';\n        optState='provisional_known_price_plan';\n        reason=`${plan.reason} Price coverage currently ends ${cov}.`;\n    } else if (plan) {\n        const cov=plan.coverageEnd?iso(plan.coverageEnd):'unknown';\n        optState='plan_incomplete';\n        reason=`${plan.reason} Price coverage ends ${cov}.`;\n    } else {\n        optState='planning';\n        reason='Planner has not produced a plan.';\n    }\n\n    // v0.2 remains LOG ONLY: never authorize charging, and global health remains false.\n    actions.push(setBool(`input_boolean.${key}_optimizer_charge_authorized`,false));\n    actions.push(setBool(`input_boolean.${key}_charge_estimate_valid`,st.estimateValid));\n    actions.push(setBool(`input_boolean.${key}_charge_plan_valid`,!!plan?.valid));\n    actions.push(setBool(longTripEntity,longTrip));\n\n    actions.push(setText(`input_text.${key}_charge_site_value`,st.cSite));\n    actions.push(setText(`input_text.${key}_charge_estimation_site_value`,st.eSite));\n    actions.push(setText(`input_text.${key}_charge_price_source_value`,priceSource));\n    actions.push(setText(`input_text.${key}_charge_rule_value`,longTrip?'long_trip':st.band));\n    actions.push(setText(`input_text.${key}_charge_optimizer_state_value`,optState));\n    actions.push(setText(`input_text.${key}_charge_optimizer_reason_value`,reason));\n    actions.push(setText(anchorEntity,anchor));\n\n    if (deadline) actions.push(setDateTime(deadlineEntity,deadline));\n    if (st.missingKwh!==null) actions.push(setNumber(`input_number.${key}_charge_missing_kwh_value`,round2(st.missingKwh)));\n    if (st.estimateKw!==null) actions.push(setNumber(`input_number.${key}_charge_estimated_power_kw_value`,round2(st.estimateKw)));\n    if (st.estimateValid) actions.push(setNumber(`input_number.${key}_charge_estimated_duration_value`,round2(st.durationH)));\n\n    const slotText=(plan?.valid || plan?.actionable) ? plannedSlotsText(plan) : 'none';\n    actions.push(setText(`input_text.${key}_charge_planned_slots_value`,slotText));\n\n    if (plan?.valid) {\n        actions.push(setNumber(`input_number.${key}_charge_estimated_cost_value`,round2(plan.totalCost)));\n        if (plan.planStart) actions.push(setDateTime(`input_datetime.${key}_charge_plan_start_value`,plan.planStart));\n        if (plan.planEnd) actions.push(setDateTime(`input_datetime.${key}_charge_plan_end_value`,plan.planEnd));\n    } else if (plan?.actionable) {\n        // Start/end describe the currently known provisional charging plan.\n        // Total cost to final target is not yet knowable, therefore cost remains 0 until a complete plan exists.\n        if (plan.planStart) actions.push(setDateTime(`input_datetime.${key}_charge_plan_start_value`,plan.planStart));\n        if (plan.planEnd) actions.push(setDateTime(`input_datetime.${key}_charge_plan_end_value`,plan.planEnd));\n        actions.push(setNumber(`input_number.${key}_charge_estimated_cost_value`,0));\n    } else {\n        actions.push(setNumber(`input_number.${key}_charge_estimated_cost_value`,0));\n    }\n\n    const logFields=[\n        now.toISOString(),\n        'price_plan_v1_2',\n        key,\n        safeText(car.name),\n        safeText(mode),\n        st.soc??'',\n        st.target??'',\n        safeText(st.location||''),\n        st.cSite,\n        st.eSite,\n        st.connected?'1':'0',\n        safeText(st.chargingPick.value||''),\n        longTrip?'long_trip':st.band,\n        longTrip?'1':'0',\n        deadline?deadline.toISOString():'',\n        st.missingKwh!==null?st.missingKwh.toFixed(2):'',\n        st.estimateKw!==null?st.estimateKw.toFixed(2):'',\n        st.estimateValid?st.durationH.toFixed(2):'',\n        priceSource,\n        priceRecord?.origin||'',\n        slots.length,\n        plan?.valid?'1':'0',\n        plan?.planStart?iso(plan.planStart):'',\n        plan?.planEnd?iso(plan.planEnd):'',\n        plan?.totalCost!==undefined?round2(plan.totalCost).toFixed(2):'',\n        plan?.averagePrice!==null && plan?.averagePrice!==undefined?plan.averagePrice.toFixed(4):'',\n        plan?.selected?.length||0,\n        safeText(plan?.compact||'',500),\n        optState,\n        safeText(reason,500),\n        safeText(st.socPick.entity||''),\n        safeText(st.targetPick.entity||''),\n        safeText(st.locationPick.entity||''),\n        safeText(st.connectedPick.entity||'')\n    ];\n    logs.push({payload:logFields.map(v=>`\"${safeText(v,800)}\"`).join(';')});\n\n    summaries[key]={\n        soc:st.soc,target:st.target,location:st.location,\n        controlSite:st.cSite,estimationSite:st.eSite,connected:st.connected,\n        controlEligible:st.controlEligible,\n        rule:longTrip?'long_trip':st.band,longTrip,\n        deadline:deadline?deadline.toISOString():null,\n        missingKwh:st.missingKwh,\n        estimatedPowerKw:st.estimateKw,\n        estimatedDurationH:st.durationH,\n        priceSource,\n        priceOrigin:priceRecord?.origin||null,\n        priceSlots:slots.length,\n        priceEqualToleranceOrePerKwh:priceEqualToleranceOre,\n        planValid:!!plan?.valid,\n        planActionable:!!plan?.actionable,\n        planProvisional:!!plan?.provisional,\n        planStart:plan?.planStart?iso(plan.planStart):null,\n        planEnd:plan?.planEnd?iso(plan.planEnd):null,\n        estimatedCost:plan?.valid?round2(plan.totalCost):null,\n        selectedSlots:plan?.selected||[],\n        stages:plan?.stages||[],\n        optimizerState:optState,\n        reason\n    };\n}\n\n// Executor calculates operational health and authorization separately.\nactions.push(setDateTime('input_datetime.ev_charge_optimizer_last_calculation_value',now));\nflow.set('evopt_latest_summary', {updated:Date.now(), cars:summaries});\n\nreturn [actions,logs,[{payload:summaries,_evopt_plan_update:true}]];\n",
+    "outputs": 3,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1430,
+    "y": 120,
+    "wires": [
+      [
+        "routeaction"
+      ],
+      [
+        "csvfile"
+      ],
+      [
+        "debugsum",
+        "executor"
+      ]
+    ]
+  },
+  {
+    "id": "routeaction",
+    "type": "switch",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Route HA helper update",
+    "property": "ha_action",
+    "propertyType": "msg",
+    "rules": [
+      {
+        "t": "eq",
+        "v": "input_number.set_value",
+        "vt": "str"
+      },
+      {
+        "t": "eq",
+        "v": "input_text.set_value",
+        "vt": "str"
+      },
+      {
+        "t": "eq",
+        "v": "input_datetime.set_datetime",
+        "vt": "str"
+      },
+      {
+        "t": "eq",
+        "v": "input_boolean.turn_on",
+        "vt": "str"
+      },
+      {
+        "t": "eq",
+        "v": "input_boolean.turn_off",
+        "vt": "str"
+      }
+    ],
+    "checkall": "true",
+    "repair": false,
+    "outputs": 5,
+    "x": 1750,
+    "y": 80,
+    "wires": [
+      [
+        "setnum"
+      ],
+      [
+        "settext"
+      ],
+      [
+        "setdt"
+      ],
+      [
+        "boolon"
+      ],
+      [
+        "booloff"
+      ]
+    ]
+  },
+  {
+    "id": "setnum",
+    "type": "api-call-service",
+    "z": "a10f0e0f4bf34c01",
+    "name": "HA input_number.set_value",
+    "server": "27dce734.128628",
+    "version": 7,
+    "debugenabled": false,
+    "action": "input_number.set_value",
+    "floorId": [],
+    "areaId": [],
+    "deviceId": [],
+    "entityId": [
+      "{{entity_id}}"
+    ],
+    "labelId": [],
+    "data": "{\"value\":{{value}}}",
+    "dataType": "json",
+    "mergeContext": "",
+    "mustacheAltTags": false,
+    "outputProperties": [],
+    "queue": "none",
+    "blockInputOverrides": false,
+    "domain": "input_number",
+    "service": "set_value",
+    "x": 1800,
+    "y": 60,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "settext",
+    "type": "api-call-service",
+    "z": "a10f0e0f4bf34c01",
+    "name": "HA input_text.set_value",
+    "server": "27dce734.128628",
+    "version": 7,
+    "debugenabled": false,
+    "action": "input_text.set_value",
+    "floorId": [],
+    "areaId": [],
+    "deviceId": [],
+    "entityId": [
+      "{{entity_id}}"
+    ],
+    "labelId": [],
+    "data": "{\"value\":\"{{value}}\"}",
+    "dataType": "json",
+    "mergeContext": "",
+    "mustacheAltTags": false,
+    "outputProperties": [],
+    "queue": "none",
+    "blockInputOverrides": false,
+    "domain": "input_text",
+    "service": "set_value",
+    "x": 1790,
+    "y": 120,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "setdt",
+    "type": "api-call-service",
+    "z": "a10f0e0f4bf34c01",
+    "name": "HA input_datetime.set_datetime",
+    "server": "27dce734.128628",
+    "version": 7,
+    "debugenabled": false,
+    "action": "input_datetime.set_datetime",
+    "floorId": [],
+    "areaId": [],
+    "deviceId": [],
+    "entityId": [
+      "{{entity_id}}"
+    ],
+    "labelId": [],
+    "data": "{\"datetime\":\"{{value}}\"}",
+    "dataType": "json",
+    "mergeContext": "",
+    "mustacheAltTags": false,
+    "outputProperties": [],
+    "queue": "none",
+    "blockInputOverrides": false,
+    "domain": "input_datetime",
+    "service": "set_datetime",
+    "x": 1810,
+    "y": 180,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "boolon",
+    "type": "api-call-service",
+    "z": "a10f0e0f4bf34c01",
+    "name": "HA input_boolean.turn_on",
+    "server": "27dce734.128628",
+    "version": 7,
+    "debugenabled": false,
+    "action": "input_boolean.turn_on",
+    "floorId": [],
+    "areaId": [],
+    "deviceId": [],
+    "entityId": [
+      "{{entity_id}}"
+    ],
+    "labelId": [],
+    "data": "{}",
+    "dataType": "json",
+    "mergeContext": "",
+    "mustacheAltTags": false,
+    "outputProperties": [],
+    "queue": "none",
+    "blockInputOverrides": false,
+    "domain": "input_boolean",
+    "service": "turn_on",
+    "x": 1800,
+    "y": 240,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "booloff",
+    "type": "api-call-service",
+    "z": "a10f0e0f4bf34c01",
+    "name": "HA input_boolean.turn_off",
+    "server": "27dce734.128628",
+    "version": 7,
+    "debugenabled": false,
+    "action": "input_boolean.turn_off",
+    "floorId": [],
+    "areaId": [],
+    "deviceId": [],
+    "entityId": [
+      "{{entity_id}}"
+    ],
+    "labelId": [],
+    "data": "{}",
+    "dataType": "json",
+    "mergeContext": "",
+    "mustacheAltTags": false,
+    "outputProperties": [],
+    "queue": "none",
+    "blockInputOverrides": false,
+    "domain": "input_boolean",
+    "service": "turn_off",
+    "x": 1800,
+    "y": 300,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "csvfile",
+    "type": "file",
+    "z": "a10f0e0f4bf34c01",
+    "name": "CSV /share/ev_charge_optimizer.csv",
+    "filename": "/share/ev_charge_optimizer.csv",
+    "filenameType": "str",
+    "appendNewline": true,
+    "createDir": false,
+    "overwriteFile": "false",
+    "encoding": "none",
+    "x": 1760,
+    "y": 300,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "debugsum",
+    "type": "debug",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Optimizer calculation summary",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 1760,
+    "y": 360,
+    "wires": []
+  },
+  {
+    "id": "cmt002",
+    "type": "comment",
+    "z": "a10f0e0f4bf34c01",
+    "name": "real_energy: auto-discovery + optional Link feed",
+    "info": "Flowet forsøger selv at finde en HA entity med real_energy. Hvis real_energy kun findes internt i et andet Node-RED-flow, tilføj en Link Out dér og forbind den til 'real_energy feed IN'.",
+    "x": 330,
+    "y": 460,
+    "wires": []
+  },
+  {
+    "id": "price_discover",
+    "type": "function",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Auto-discover real_energy in HA",
+    "func": "\nfunction pnum(v) {\n    if (v === null || v === undefined || v === '') return null;\n    if (typeof v === 'string') v = v.trim().replace(',', '.');\n    const n = Number(v);\n    return Number.isFinite(n) ? n : null;\n}\nfunction pdate(v) {\n    if (v === null || v === undefined || v === '') return null;\n    if (v instanceof Date) return Number.isFinite(v.getTime()) ? v : null;\n    if (typeof v === 'number') {\n        const ms = v < 100000000000 ? v * 1000 : v;\n        const d = new Date(ms);\n        return Number.isFinite(d.getTime()) ? d : null;\n    }\n    let s = String(v).trim();\n    if (/^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}/.test(s)) s = s.replace(' ', 'T');\n    const d = new Date(s);\n    return Number.isFinite(d.getTime()) ? d : null;\n}\nfunction priceFromObject(o) {\n    if (!o || typeof o !== 'object') return null;\n    const keys = [\n        'price','value','total','total_price','totalPrice','real_energy','realEnergy',\n        'price_dkk_kwh','price_dkk_per_kwh','dkk_per_kwh','all_in','all_in_price',\n        'allIn','allInPrice','cost','energy_price','energyPrice'\n    ];\n    for (const k of keys) {\n        const n = pnum(o[k]);\n        if (n !== null) return n;\n    }\n    return null;\n}\nfunction startFromObject(o) {\n    if (!o || typeof o !== 'object') return null;\n    for (const k of ['start','start_time','startTime','from','datetime','date_time','timestamp','time']) {\n        const d = pdate(o[k]);\n        if (d) return d;\n    }\n    return null;\n}\nfunction endFromObject(o) {\n    if (!o || typeof o !== 'object') return null;\n    for (const k of ['end','end_time','endTime','to','stop']) {\n        const d = pdate(o[k]);\n        if (d) return d;\n    }\n    return null;\n}\nfunction dayStart(offsetDays) {\n    const d = new Date();\n    d.setHours(0,0,0,0);\n    d.setDate(d.getDate() + offsetDays);\n    return d;\n}\nfunction addNumericArray(out, arr, start, minutes) {\n    if (!Array.isArray(arr)) return;\n    arr.forEach((v,i) => {\n        const price = pnum(v);\n        if (price === null) return;\n        const s = new Date(start.getTime() + i * minutes * 60000);\n        const e = new Date(s.getTime() + minutes * 60000);\n        out.push({start:s, end:e, price});\n    });\n}\nfunction addObjectArray(out, arr) {\n    if (!Array.isArray(arr)) return;\n    const parsed = [];\n    for (const item of arr) {\n        if (Array.isArray(item) && item.length >= 2) {\n            const s = pdate(item[0]);\n            const price = pnum(item[1]);\n            if (s && price !== null) parsed.push({start:s, end:null, price});\n            continue;\n        }\n        if (!item || typeof item !== 'object') continue;\n        const s = startFromObject(item);\n        const price = priceFromObject(item);\n        if (s && price !== null) parsed.push({start:s, end:endFromObject(item), price});\n    }\n    parsed.sort((a,b) => a.start - b.start);\n    parsed.forEach((x,i) => {\n        let e = x.end;\n        if (!e && parsed[i+1] && parsed[i+1].start > x.start) e = parsed[i+1].start;\n        if (!e) e = new Date(x.start.getTime() + 15*60000);\n        if (e > x.start) out.push({start:x.start, end:e, price:x.price});\n    });\n}\nfunction normalizePricePayload(input) {\n    const out = [];\n    const seenObjects = new Set();\n\n    function walk(v, depth=0, keyHint='') {\n        if (depth > 5 || v === null || v === undefined) return;\n        if (typeof v !== 'object') return;\n        if (seenObjects.has(v)) return;\n        seenObjects.add(v);\n\n        if (Array.isArray(v)) {\n            if (!v.length) return;\n\n            const allNumbers = v.every(x => pnum(x) !== null);\n            if (allNumbers) {\n                let minutes = 15;\n                if (v.length === 24 || v.length === 48) minutes = 60;\n                let offset = /tomorrow|next/i.test(keyHint) ? 1 : 0;\n                addNumericArray(out, v, dayStart(offset), minutes);\n                return;\n            }\n\n            addObjectArray(out, v);\n            for (const item of v) walk(item, depth+1, keyHint);\n            return;\n        }\n\n        // A single slot object.\n        const s = startFromObject(v);\n        const price = priceFromObject(v);\n        if (s && price !== null) {\n            const e = endFromObject(v) || new Date(s.getTime() + 15*60000);\n            if (e > s) out.push({start:s, end:e, price});\n        }\n\n        // Timestamp -> numeric price map.\n        for (const [k,val] of Object.entries(v)) {\n            const kd = pdate(k);\n            const pn = pnum(val);\n            if (kd && pn !== null) {\n                out.push({start:kd, end:new Date(kd.getTime()+15*60000), price:pn});\n            }\n        }\n\n        // Explicit today/tomorrow arrays get correct midnight anchor.\n        for (const [k,val] of Object.entries(v)) {\n            if (Array.isArray(val) && val.length && val.every(x => pnum(x) !== null)) {\n                const mins = (val.length === 24) ? 60 : 15;\n                const off = /tomorrow|next/i.test(k) ? 1 : 0;\n                addNumericArray(out, val, dayStart(off), mins);\n            } else {\n                walk(val, depth+1, k);\n            }\n        }\n    }\n\n    walk(input);\n\n    // Deduplicate by start timestamp; prefer last discovered value.\n    const byStart = new Map();\n    for (const s of out) {\n        if (!s.start || !s.end || !Number.isFinite(s.price)) continue;\n        byStart.set(s.start.getTime(), s);\n    }\n    const result = [...byStart.values()]\n        .sort((a,b) => a.start - b.start)\n        .filter(s => s.end > s.start)\n        .map(s => ({start:s.start.toISOString(), end:s.end.toISOString(), price:s.price}));\n\n    return result;\n}\n\nconst ha = global.get('homeassistant');\nconst states =\n    (ha && ha.homeAssistant && ha.homeAssistant.states) ||\n    (ha && ha.states) ||\n    {};\n\nconst names = Object.keys(states || {});\nconst scored = [];\n\nfor (const id of names) {\n    const obj = states[id] || {};\n    const friendly = String((obj.attributes && obj.attributes.friendly_name) || '').toLowerCase();\n    const low = id.toLowerCase();\n\n    let score = 0;\n    if (low === 'sensor.real_energy') score = 1000;\n    else if (low === 'sensor.real_energy_price') score = 950;\n    else if (low.includes('real_energy')) score = 800;\n    else if (friendly.includes('real energy')) score = 700;\n    else if (friendly.includes('real_energy')) score = 650;\n\n    if (!score) continue;\n\n    const slots = normalizePricePayload({\n        state: obj.state,\n        attributes: obj.attributes || {}\n    });\n    if (slots.length) scored.push({id, score: score + Math.min(slots.length,200), slots});\n}\n\nscored.sort((a,b) => b.score - a.score);\nlet cache = flow.get('evopt_price_sources') || {};\n\nif (scored.length) {\n    const best = scored[0];\n    cache.real_energy = {\n        source: 'real_energy',\n        origin: `ha:${best.id}`,\n        updated: Date.now(),\n        slots: best.slots\n    };\n    flow.set('evopt_price_sources', cache);\n    node.status({fill:'green',shape:'dot',text:`${best.id}: ${best.slots.length} slots`});\n    msg._evopt_price_discovery = {found:true, entity:best.id, slots:best.slots.length};\n} else if (cache.real_energy && Array.isArray(cache.real_energy.slots) && cache.real_energy.slots.length) {\n    node.status({fill:'yellow',shape:'ring',text:`cache: ${cache.real_energy.slots.length} slots`});\n    msg._evopt_price_discovery = {found:false, using_cache:true, slots:cache.real_energy.slots.length};\n} else {\n    node.status({fill:'red',shape:'ring',text:'real_energy not found'});\n    msg._evopt_price_discovery = {found:false, using_cache:false};\n}\n\nreturn msg;\n",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 330,
+    "y": 120,
+    "wires": [
+      [
+        "pollbuild"
+      ]
+    ]
+  },
+  {
+    "id": "price_link_in",
+    "type": "link in",
+    "z": "a10f0e0f4bf34c01",
+    "name": "real_energy feed IN",
+    "links": [],
+    "x": 95,
+    "y": 520,
+    "wires": [
+      [
+        "price_adapter"
+      ]
+    ]
+  },
+  {
+    "id": "price_adapter",
+    "type": "function",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Normalize + cache real_energy",
+    "func": "\nfunction pnum(v) {\n    if (v === null || v === undefined || v === '') return null;\n    if (typeof v === 'string') v = v.trim().replace(',', '.');\n    const n = Number(v);\n    return Number.isFinite(n) ? n : null;\n}\nfunction pdate(v) {\n    if (v === null || v === undefined || v === '') return null;\n    if (v instanceof Date) return Number.isFinite(v.getTime()) ? v : null;\n    if (typeof v === 'number') {\n        const ms = v < 100000000000 ? v * 1000 : v;\n        const d = new Date(ms);\n        return Number.isFinite(d.getTime()) ? d : null;\n    }\n    let s = String(v).trim();\n    if (/^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}/.test(s)) s = s.replace(' ', 'T');\n    const d = new Date(s);\n    return Number.isFinite(d.getTime()) ? d : null;\n}\nfunction priceFromObject(o) {\n    if (!o || typeof o !== 'object') return null;\n    const keys = [\n        'price','value','total','total_price','totalPrice','real_energy','realEnergy',\n        'price_dkk_kwh','price_dkk_per_kwh','dkk_per_kwh','all_in','all_in_price',\n        'allIn','allInPrice','cost','energy_price','energyPrice'\n    ];\n    for (const k of keys) {\n        const n = pnum(o[k]);\n        if (n !== null) return n;\n    }\n    return null;\n}\nfunction startFromObject(o) {\n    if (!o || typeof o !== 'object') return null;\n    for (const k of ['start','start_time','startTime','from','datetime','date_time','timestamp','time']) {\n        const d = pdate(o[k]);\n        if (d) return d;\n    }\n    return null;\n}\nfunction endFromObject(o) {\n    if (!o || typeof o !== 'object') return null;\n    for (const k of ['end','end_time','endTime','to','stop']) {\n        const d = pdate(o[k]);\n        if (d) return d;\n    }\n    return null;\n}\nfunction dayStart(offsetDays) {\n    const d = new Date();\n    d.setHours(0,0,0,0);\n    d.setDate(d.getDate() + offsetDays);\n    return d;\n}\nfunction addNumericArray(out, arr, start, minutes) {\n    if (!Array.isArray(arr)) return;\n    arr.forEach((v,i) => {\n        const price = pnum(v);\n        if (price === null) return;\n        const s = new Date(start.getTime() + i * minutes * 60000);\n        const e = new Date(s.getTime() + minutes * 60000);\n        out.push({start:s, end:e, price});\n    });\n}\nfunction addObjectArray(out, arr) {\n    if (!Array.isArray(arr)) return;\n    const parsed = [];\n    for (const item of arr) {\n        if (Array.isArray(item) && item.length >= 2) {\n            const s = pdate(item[0]);\n            const price = pnum(item[1]);\n            if (s && price !== null) parsed.push({start:s, end:null, price});\n            continue;\n        }\n        if (!item || typeof item !== 'object') continue;\n        const s = startFromObject(item);\n        const price = priceFromObject(item);\n        if (s && price !== null) parsed.push({start:s, end:endFromObject(item), price});\n    }\n    parsed.sort((a,b) => a.start - b.start);\n    parsed.forEach((x,i) => {\n        let e = x.end;\n        if (!e && parsed[i+1] && parsed[i+1].start > x.start) e = parsed[i+1].start;\n        if (!e) e = new Date(x.start.getTime() + 15*60000);\n        if (e > x.start) out.push({start:x.start, end:e, price:x.price});\n    });\n}\nfunction normalizePricePayload(input) {\n    const out = [];\n    const seenObjects = new Set();\n\n    function walk(v, depth=0, keyHint='') {\n        if (depth > 5 || v === null || v === undefined) return;\n        if (typeof v !== 'object') return;\n        if (seenObjects.has(v)) return;\n        seenObjects.add(v);\n\n        if (Array.isArray(v)) {\n            if (!v.length) return;\n\n            const allNumbers = v.every(x => pnum(x) !== null);\n            if (allNumbers) {\n                let minutes = 15;\n                if (v.length === 24 || v.length === 48) minutes = 60;\n                let offset = /tomorrow|next/i.test(keyHint) ? 1 : 0;\n                addNumericArray(out, v, dayStart(offset), minutes);\n                return;\n            }\n\n            addObjectArray(out, v);\n            for (const item of v) walk(item, depth+1, keyHint);\n            return;\n        }\n\n        // A single slot object.\n        const s = startFromObject(v);\n        const price = priceFromObject(v);\n        if (s && price !== null) {\n            const e = endFromObject(v) || new Date(s.getTime() + 15*60000);\n            if (e > s) out.push({start:s, end:e, price});\n        }\n\n        // Timestamp -> numeric price map.\n        for (const [k,val] of Object.entries(v)) {\n            const kd = pdate(k);\n            const pn = pnum(val);\n            if (kd && pn !== null) {\n                out.push({start:kd, end:new Date(kd.getTime()+15*60000), price:pn});\n            }\n        }\n\n        // Explicit today/tomorrow arrays get correct midnight anchor.\n        for (const [k,val] of Object.entries(v)) {\n            if (Array.isArray(val) && val.length && val.every(x => pnum(x) !== null)) {\n                const mins = (val.length === 24) ? 60 : 15;\n                const off = /tomorrow|next/i.test(k) ? 1 : 0;\n                addNumericArray(out, val, dayStart(off), mins);\n            } else {\n                walk(val, depth+1, k);\n            }\n        }\n    }\n\n    walk(input);\n\n    // Deduplicate by start timestamp; prefer last discovered value.\n    const byStart = new Map();\n    for (const s of out) {\n        if (!s.start || !s.end || !Number.isFinite(s.price)) continue;\n        byStart.set(s.start.getTime(), s);\n    }\n    const result = [...byStart.values()]\n        .sort((a,b) => a.start - b.start)\n        .filter(s => s.end > s.start)\n        .map(s => ({start:s.start.toISOString(), end:s.end.toISOString(), price:s.price}));\n\n    return result;\n}\n\nlet source = String(msg.price_source || msg.energy_source || 'real_energy')\n    .trim().toLowerCase().replace(/\\s+/g,'_');\nif (!source) source = 'real_energy';\n\nconst candidates = [\n    msg.payload,\n    msg.data,\n    msg,\n    msg.payload && msg.payload.attributes,\n    msg.data && msg.data.attributes\n];\n\nlet best = [];\nfor (const c of candidates) {\n    const slots = normalizePricePayload(c);\n    if (slots.length > best.length) best = slots;\n}\n\nif (!best.length) {\n    node.status({fill:'red',shape:'ring',text:'0 price slots parsed'});\n    return [null, {payload:{\n        status:'parse_failed',\n        source,\n        hint:'Feed must contain timestamped prices or today/tomorrow arrays.'\n    }}];\n}\n\nlet cache = flow.get('evopt_price_sources') || {};\ncache[source] = {\n    source,\n    origin:'node_red_link_feed',\n    updated:Date.now(),\n    slots:best\n};\nflow.set('evopt_price_sources', cache);\n\nnode.status({fill:'green',shape:'dot',text:`${source}: ${best.length} slots`});\n\nconst first = best[0];\nconst last = best[best.length-1];\nreturn [\n    {_evopt_price_update:true, payload:Date.now()},\n    {payload:{\n        status:'ok',\n        source,\n        slots:best.length,\n        first:first.start,\n        last:last.end,\n        min_price:Math.min(...best.map(x=>x.price)),\n        max_price:Math.max(...best.map(x=>x.price))\n    }}\n];\n",
+    "outputs": 2,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 340,
+    "y": 520,
+    "wires": [
+      [
+        "pollbuild"
+      ],
+      [
+        "price_debug"
+      ]
+    ]
+  },
+  {
+    "id": "price_debug",
+    "type": "debug",
+    "z": "a10f0e0f4bf34c01",
+    "name": "real_energy adapter status",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 650,
+    "y": 560,
+    "wires": []
+  },
+  {
+    "id": "csv_header_inject",
+    "type": "inject",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Ensure CSV header on startup",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": true,
+    "onceDelay": 1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 160,
+    "y": 620,
+    "wires": [
+      [
+        "csv_header_exec"
+      ]
+    ]
+  },
+  {
+    "id": "csv_header_exec",
+    "type": "exec",
+    "z": "a10f0e0f4bf34c01",
+    "command": "f=/share/ev_charge_optimizer.csv; h='\"timestamp\";\"calculation_type\";\"car\";\"car_name\";\"mode\";\"soc_pct\";\"target_pct\";\"broker_location\";\"control_site\";\"estimation_site\";\"cable_connected\";\"charging_state\";\"rule\";\"long_trip\";\"deadline\";\"missing_kwh\";\"estimated_power_kw\";\"estimated_duration_h\";\"price_source\";\"price_origin\";\"price_slots\";\"plan_valid\";\"plan_start\";\"plan_end\";\"estimated_cost_dkk\";\"average_price_dkk_per_kwh\";\"selected_slot_count\";\"planned_slots\";\"optimizer_state\";\"reason\";\"soc_entity\";\"target_entity\";\"location_entity\";\"cable_entity\"'; if [ -s \"$f\" ]; then IFS= read -r first < \"$f\"; case \"$first\" in '\"timestamp\";'*) ;; *) { printf \"%s\\n\" \"$h\"; cat \"$f\"; } > \"$f.tmp\" && mv \"$f.tmp\" \"$f\";; esac; else printf \"%s\\n\" \"$h\" > \"$f\"; fi",
+    "addpay": "",
+    "append": "",
+    "useSpawn": "false",
+    "timer": "",
+    "winHide": false,
+    "oldrc": false,
+    "name": "Create/prepend CSV header if missing",
+    "x": 470,
+    "y": 620,
+    "wires": [
+      [],
+      [
+        "csv_header_debug"
+      ],
+      [
+        "csv_header_debug"
+      ]
+    ]
+  },
+  {
+    "id": "csv_header_debug",
+    "type": "debug",
+    "z": "a10f0e0f4bf34c01",
+    "name": "CSV header init error",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 760,
+    "y": 660,
+    "wires": []
+  },
+  {
+    "id": "executor",
+    "type": "function",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Charge Executor + Cheap Boost v1.1",
+    "func": "\n// EV Charge Optimizer v1.1 executor + cheap-price boost.\n// Normal scheduled charging follows planner slots.\n// Cheap Boost can temporarily raise a car's charge limit to the configured boost target\n// and authorize continuous charging while current price is below the configured threshold.\n// Tesla commands are ONLY sent in Production mode.\n\nconst ha = global.get('homeassistant');\nconst states =\n    (ha && ha.homeAssistant && ha.homeAssistant.states) ||\n    (ha && ha.states) || {};\nconst priceSources = flow.get('evopt_price_sources') || {};\n\nfunction getState(entity) {\n    const x=states[entity];\n    if (!x) return null;\n    const s=String(x.state??'').trim();\n    if (!s || ['unknown','unavailable','none','null'].includes(s.toLowerCase())) return null;\n    return s;\n}\nfunction getBool(entity) {\n    const s=getState(entity);\n    if (s===null) return null;\n    const v=s.toLowerCase();\n    if (['on','true','yes','connected','charging'].includes(v)) return true;\n    if (['off','false','no','disconnected','stopped','complete'].includes(v)) return false;\n    return null;\n}\nfunction getNum(entity) {\n    const s=getState(entity);\n    if (s===null) return null;\n    const n=Number(String(s).replace(',','.'));\n    return Number.isFinite(n) ? n : null;\n}\nfunction firstNum(list) {\n    for (const e of list) { const n=getNum(e); if (n!==null) return {value:n,entity:e}; }\n    return {value:null,entity:null};\n}\nfunction firstState(list) {\n    for (const e of list) { const s=getState(e); if (s!==null) return {value:s,entity:e}; }\n    return {value:null,entity:null};\n}\nfunction firstBool(list) {\n    for (const e of list) { const b=getBool(e); if (b!==null) return {value:b,entity:e}; }\n    return {value:null,entity:null};\n}\nfunction safe(v,max=800) {\n    return String(v??'').replace(/[\\r\\n]+/g,' ').replace(/\"/g,\"'\").slice(0,max);\n}\nfunction headerRow(type,key,car,mode,summary,reason) {\n    const fields=[\n        new Date().toISOString(), type, key, car.name, mode,\n        summary?.soc??'', summary?.target??'', safe(summary?.location||''),\n        summary?.controlSite||'', summary?.estimationSite||'',\n        summary?.connected?'1':'0', '',\n        summary?.rule||'', summary?.longTrip?'1':'0', summary?.deadline||'',\n        summary?.missingKwh??'', summary?.estimatedPowerKw??'', summary?.estimatedDurationH??'',\n        summary?.priceSource||'', summary?.priceOrigin||'', summary?.priceSlots??'',\n        summary?.planValid?'1':'0', summary?.planStart||'', summary?.planEnd||'',\n        summary?.estimatedCost??'', '', summary?.selectedSlots?.length||'',\n        safe((summary?.selectedSlots||[]).map(x=>`${x.start}..${x.end} @${x.price}`).join(' | '),500),\n        type, safe(reason,500), '', '', '', ''\n    ];\n    return {payload:fields.map(v=>`\"${safe(v)}\"`).join(';')};\n}\nfunction setBoolMsg(entity_id,on) {\n    return {ha_action:on?'input_boolean.turn_on':'input_boolean.turn_off',entity_id};\n}\nfunction setNumMsg(entity_id,value) {\n    return {ha_action:'input_number.set_value',entity_id,value:Number(value)};\n}\nfunction setTextMsg(entity_id,value) {\n    return {ha_action:'input_text.set_value',entity_id,value:String(value)};\n}\nfunction setDateTimeMsg(entity_id,d) {\n    const pad=n=>String(n).padStart(2,'0');\n    const s=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;\n    return {ha_action:'input_datetime.set_datetime',entity_id,value:s};\n}\nfunction desiredNow(summary, nowMs) {\n    if (!summary || !Array.isArray(summary.selectedSlots)) return false;\n    return summary.selectedSlots.some(s=>{\n        const a=Date.parse(s.start), b=Date.parse(s.end);\n        return Number.isFinite(a)&&Number.isFinite(b)&&nowMs>=a&&nowMs<b;\n    });\n}\nfunction chargingActual(car) {\n    const sw=getBool(car.switchEntity);\n    if (sw!==null) return sw;\n    const st=firstState(car.chargingEntities).value;\n    if (st===null) return null;\n    const v=String(st).toLowerCase();\n    if (v.includes('charg') && !v.includes('not') && !v.includes('dis')) return true;\n    if (['stopped','complete','disconnected','no_power'].some(x=>v.includes(x))) return false;\n    return null;\n}\nfunction normalizeLocation(s) {\n    return String(s||'').trim().toLowerCase().replace(/_/g,' ').replace(/\\s+/g,' ');\n}\nfunction siteFromLocation(location) {\n    const l=normalizeLocation(location);\n    if (l==='home') return 'anemonevej';\n    if (['i.a. møllersvej','i.a møllersvej','i.a. mollersvej','i.a mollersvej'].includes(l)) return 'ia_moellersvej';\n    return 'none';\n}\nfunction sitePriceSource(site) {\n    if (site==='anemonevej') return getState('input_text.ev_site_anemonevej_price_source') || 'real_energy';\n    if (site==='ia_moellersvej') return getState('input_text.ev_site_ia_moellersvej_price_source') || 'real_energy';\n    return null;\n}\nfunction siteKw(site) {\n    let amps=null;\n    if (site==='anemonevej') amps=getNum('input_number.ev_site_anemonevej_grid_limit_amps');\n    if (site==='ia_moellersvej') amps=getNum('input_number.ev_site_ia_moellersvej_grid_limit_amps');\n    return amps && amps>0 ? 3*230*amps/1000 : null;\n}\nfunction currentCheapWindow(source,threshold,nowMs) {\n    const rec=priceSources[source];\n    if (!rec || !Array.isArray(rec.slots)) return {known:false,cheap:false,price:null,end:null};\n    const slots=rec.slots.map(x=>({\n        start:Date.parse(x.start),end:Date.parse(x.end),price:Number(x.price)\n    })).filter(x=>Number.isFinite(x.start)&&Number.isFinite(x.end)&&Number.isFinite(x.price)&&x.end>x.start)\n      .sort((a,b)=>a.start-b.start);\n\n    let idx=slots.findIndex(x=>nowMs>=x.start && nowMs<x.end);\n    if (idx<0) return {known:false,cheap:false,price:null,end:null};\n\n    const cur=slots[idx];\n    if (!(cur.price<threshold)) return {known:true,cheap:false,price:cur.price,end:new Date(cur.end)};\n\n    let end=cur.end;\n    for (let i=idx+1;i<slots.length;i++) {\n        const s=slots[i];\n        // contiguous price slots only\n        if (Math.abs(s.start-end)>2000) break;\n        if (!(s.price<threshold)) break;\n        end=s.end;\n    }\n    return {known:true,cheap:true,price:cur.price,end:new Date(end)};\n}\nfunction approx(a,b,tol=0.25) {\n    return Number.isFinite(a)&&Number.isFinite(b)&&Math.abs(a-b)<=tol;\n}\n\nconst cars={\n    blue_flux:{\n        name:'Blue Flux',\n        switchEntity:'switch.blue_flux_charge',\n        limitEntity:'number.blue_flux_charge_limit',\n        socEntities:['sensor.blue_flux_broker_battery_level'],\n        targetEntities:['sensor.blue_flux_broker_charge_limit_actual'],\n        locationEntities:['sensor.blue_flux_broker_location'],\n        chargingEntities:['sensor.blue_flux_broker_charger_state'],\n        cableEntities:['binary_sensor.blue_flux_broker_charge_cable_connected'],\n        capacityEntity:'input_number.blue_flux_optimizer_battery_capacity_kwh',\n        maxAcEntity:'input_number.blue_flux_optimizer_max_ac_kw'\n    },\n    ellingo:{\n        name:'ElLingo',\n        switchEntity:'switch.ellingo_charge',\n        limitEntity:'number.ellingo_charge_limit_2',\n        socEntities:['sensor.ellingo_broker_battery_level'],\n        targetEntities:['sensor.ellingo_broker_charge_limit_actual'],\n        locationEntities:['sensor.ellingo_broker_location'],\n        chargingEntities:['sensor.ellingo_broker_charger_state'],\n        cableEntities:['binary_sensor.ellingo_broker_charge_cable_connected'],\n        capacityEntity:'input_number.ellingo_optimizer_battery_capacity_kwh',\n        maxAcEntity:'input_number.ellingo_optimizer_max_ac_kw'\n    }\n};\n\nconst latest=flow.get('evopt_latest_summary');\nconst summaries=latest?.cars || {};\nconst summaryAgeMs=latest?.updated ? Date.now()-latest.updated : Infinity;\nconst mode=getState('input_select.ev_charge_optimizer_mode') || 'Log only';\nconst production=mode==='Production';\nconst watchdog=msg._watchdog===true;\nconst nowMs=Date.now();\n\n// ------------------------------------------------------------\n// Cheap Boost configuration\n// ------------------------------------------------------------\nconst boostConfigInitialized=getBool('input_boolean.ev_charge_cheap_boost_config_initialized')===true;\nconst boostEnabledState=getBool('input_boolean.ev_charge_cheap_boost_enabled');\nconst boostEnabled=boostConfigInitialized ? boostEnabledState===true : true;\nconst boostThreshold=boostConfigInitialized\n    ? (getNum('input_number.ev_charge_cheap_boost_price_threshold_dkk_per_kwh') ?? 0.50)\n    : 0.50;\nconst boostTarget=boostConfigInitialized\n    ? (getNum('input_number.ev_charge_cheap_boost_target_pct') ?? 80)\n    : 80;\n\nconst helperMsgs=[];\nconst limitMsgs=[];\nconst onMsgs=[], offMsgs=[], logMsgs=[];\n\n// Log a blocked scheduled start once per slot/reason, rather than silently doing nothing.\nfunction logBlockedOnce(key,car,s,reason,blockId) {\n    const ctxKey=`evopt_blocked_${key}`;\n    const prev=flow.get(ctxKey);\n    if (prev!==blockId) {\n        flow.set(ctxKey,blockId);\n        logMsgs.push(headerRow('executor_start_blocked',key,car,mode,s,reason));\n    }\n}\n\nif (!boostConfigInitialized) {\n    helperMsgs.push(setNumMsg('input_number.ev_charge_cheap_boost_price_threshold_dkk_per_kwh',0.50));\n    helperMsgs.push(setNumMsg('input_number.ev_charge_cheap_boost_target_pct',80));\n    helperMsgs.push(setBoolMsg('input_boolean.ev_charge_cheap_boost_enabled',true));\n    helperMsgs.push(setBoolMsg('input_boolean.ev_charge_cheap_boost_config_initialized',true));\n}\n\n// ------------------------------------------------------------\n// Build live car data first so shared-site power can be conservative.\n// ------------------------------------------------------------\nconst live={};\nfor (const [key,car] of Object.entries(cars)) {\n    const soc=firstNum(car.socEntities).value;\n    const limit=firstNum(car.targetEntities).value;\n    const location=firstState(car.locationEntities).value;\n    const site=siteFromLocation(location);\n    const cable=firstBool(car.cableEntities).value===true;\n    const source=sitePriceSource(site);\n    live[key]={\n        key,car,soc,limit,location,site,cable,source,\n        capacity:getNum(car.capacityEntity),\n        maxAc:getNum(car.maxAcEntity)\n    };\n}\n\n// Conservative potential contenders at a site. If both connected cars could charge,\n// reserve half of site capacity for each rather than assuming full site power.\nfor (const x of Object.values(live)) {\n    let contenders=0;\n    for (const y of Object.values(live)) {\n        if (y.site===x.site && y.site!=='none' && y.cable && y.soc!==null && y.limit!==null) {\n            if (y.soc<y.limit || (y.limit<boostTarget && y.soc<boostTarget)) contenders++;\n        }\n    }\n    contenders=Math.max(1,contenders);\n    const skw=siteKw(x.site);\n    x.availableKw=(x.maxAc && skw) ? Math.min(x.maxAc,skw/contenders) : null;\n}\n\n// ------------------------------------------------------------\n// Operational health for normal planner.\n// ------------------------------------------------------------\n// Planner fallback recalculates every 30 minutes.\n// A 10-minute limit could invalidate a perfectly valid scheduled slot between planner runs.\n// Use 40 minutes = 30-minute planner cadence + 10-minute safety margin.\nconst maxSummaryAgeMs=40*60*1000;\nlet healthy=summaryAgeMs < maxSummaryAgeMs;\nfor (const [key,s] of Object.entries(summaries)) {\n    if (!s) continue;\n    if (s.controlEligible && s.soc!==null && s.target!==null && Number(s.soc)<Number(s.target)) {\n        if (!(s.planValid || s.planActionable) || !s.priceSlots) healthy=false;\n    }\n}\nif (!production) healthy=false;\n\nhelperMsgs.push(setBoolMsg('input_boolean.ev_charge_optimizer_healthy_value',healthy));\n\n// ------------------------------------------------------------\n// Cheap Boost state machine per car.\n// ------------------------------------------------------------\nconst boost={};\n\nfor (const [key,x] of Object.entries(live)) {\n    const car=x.car;\n    const s=summaries[key];\n    const actual=chargingActual(car);\n\n    let active=getBool(`input_boolean.${key}_cheap_boost_active`)===true;\n    let suppressed=getBool(`input_boolean.${key}_cheap_boost_suppressed`)===true;\n    let original=getNum(`input_number.${key}_cheap_boost_original_limit_value`);\n    const priceWin=x.source ? currentCheapWindow(x.source,boostThreshold,nowMs) :\n                              {known:false,cheap:false,price:null,end:null};\n\n    const validSite=x.site!=='none';\n    const eligible=validSite && x.cable;\n    const dataOk=x.soc!==null && x.limit!==null && x.capacity!==null && x.availableKw!==null && x.availableKw>0;\n    let boostAuthorized=false;\n    let status='inactive';\n    let reason='';\n\n    // End of a cheap window resets suppression, allowing evaluation next time price falls.\n    if (!priceWin.cheap && suppressed) {\n        suppressed=false;\n        helperMsgs.push(setBoolMsg(`input_boolean.${key}_cheap_boost_suppressed`,false));\n    }\n\n    // Manual charge-limit change protection while boost is active:\n    // - live limit == boost target: normal active state\n    // - live limit == original: may be command propagation / restore already completed\n    // - any other value: user/Tesla changed it, so cancel boost WITHOUT restoring original\n    if (active && x.limit!==null && original!==null &&\n        !approx(x.limit,boostTarget) && !approx(x.limit,original)) {\n        active=false;\n        suppressed=false;\n        helperMsgs.push(setBoolMsg(`input_boolean.${key}_cheap_boost_active`,false));\n        helperMsgs.push(setBoolMsg(`input_boolean.${key}_cheap_boost_suppressed`,false));\n        status='manual_override';\n        reason=`Charge limit changed externally from boost target ${boostTarget}% to ${x.limit}%. Old ${original}% limit will NOT be restored.`;\n        helperMsgs.push(setTextMsg(`input_text.${key}_cheap_boost_status_value`,status));\n        logMsgs.push(headerRow('cheap_boost_manual_override',key,car,mode,s,reason));\n    }\n\n    // Restore conditions for an existing boost.\n    if (active) {\n        let restoreReason=null;\n\n        if (!production) restoreReason='Optimizer left Production mode.';\n        else if (!boostEnabled) restoreReason='Cheap Boost was disabled.';\n        else if (!eligible) restoreReason='Car left a valid charging site or cable disconnected.';\n        else if (!priceWin.known) restoreReason='Current real_energy price is unavailable.';\n        else if (!priceWin.cheap) restoreReason=`Price ${priceWin.price?.toFixed(4)} DKK/kWh is no longer below ${boostThreshold.toFixed(2)}.`;\n        else if (x.soc!==null && x.soc>=boostTarget) restoreReason=`Boost target ${boostTarget}% reached.`;\n\n        if (restoreReason) {\n            // Restore only if the car is still at the temporary boost limit (or still at original).\n            // If another value is present, treat it as an external/manual change and preserve it.\n            if (original!==null && x.limit!==null && approx(x.limit,boostTarget)) {\n                limitMsgs.push({entity_id:car.limitEntity,value:original,car:key,reason:'cheap_boost_restore'});\n            }\n            active=false;\n            helperMsgs.push(setBoolMsg(`input_boolean.${key}_cheap_boost_active`,false));\n            status='restoring';\n            reason=`${restoreReason} Restoring original charge limit ${original}%.`;\n            helperMsgs.push(setTextMsg(`input_text.${key}_cheap_boost_status_value`,status));\n            logMsgs.push(headerRow('cheap_boost_restore',key,car,mode,s,reason));\n        }\n    }\n\n    // Activate a new boost only while price is currently cheap.\n    if (!active && !suppressed && production && boostEnabled && eligible &&\n        priceWin.known && priceWin.cheap && dataOk &&\n        x.limit<boostTarget && x.soc<boostTarget) {\n\n        const cheapHours=Math.max(0,(priceWin.end.getTime()-nowMs)/3600000);\n        const kwhToBoost=x.capacity*Math.max(0,boostTarget-x.soc)/100;\n        const hoursToBoost=kwhToBoost/x.availableKw;\n        const alreadyAtNormalTarget=x.soc>=x.limit;\n        const canReachBoost=hoursToBoost<=cheapHours + 1e-6;\n\n        if (alreadyAtNormalTarget || canReachBoost) {\n            original=x.limit;\n            active=true;\n            helperMsgs.push(setNumMsg(`input_number.${key}_cheap_boost_original_limit_value`,original));\n            helperMsgs.push(setBoolMsg(`input_boolean.${key}_cheap_boost_active`,true));\n            helperMsgs.push(setBoolMsg(`input_boolean.${key}_cheap_boost_suppressed`,false));\n            helperMsgs.push(setDateTimeMsg(`input_datetime.${key}_cheap_boost_window_end_value`,priceWin.end));\n            status='active';\n            reason=alreadyAtNormalTarget\n                ? `Normal target ${original}% already reached. Price ${priceWin.price.toFixed(4)} < ${boostThreshold.toFixed(2)} DKK/kWh; boost to ${boostTarget}% until ${priceWin.end.toISOString()}.`\n                : `Can reach ${boostTarget}% inside current cheap window (${hoursToBoost.toFixed(2)}h required, ${cheapHours.toFixed(2)}h available).`;\n            helperMsgs.push(setTextMsg(`input_text.${key}_cheap_boost_status_value`,status));\n\n            limitMsgs.push({entity_id:car.limitEntity,value:boostTarget,car:key,reason:'cheap_boost_start'});\n            boostAuthorized=true; // Start immediately; do not wait for broker to reflect new limit.\n            logMsgs.push(headerRow('cheap_boost_start',key,car,mode,s,reason));\n        } else {\n            // Important requirement: once rejected for this cheap window, do not reconsider\n            // midway through the same window merely because the car later reaches normal target.\n            suppressed=true;\n            helperMsgs.push(setBoolMsg(`input_boolean.${key}_cheap_boost_suppressed`,true));\n            helperMsgs.push(setDateTimeMsg(`input_datetime.${key}_cheap_boost_window_end_value`,priceWin.end));\n            status='skipped_insufficient_window';\n            reason=`Cheap window ends ${priceWin.end.toISOString()}; ${hoursToBoost.toFixed(2)}h required to reach ${boostTarget}% but only ${cheapHours.toFixed(2)}h available. Limit remains ${x.limit}%.`;\n            helperMsgs.push(setTextMsg(`input_text.${key}_cheap_boost_status_value`,status));\n            logMsgs.push(headerRow('cheap_boost_skip',key,car,mode,s,reason));\n        }\n    }\n\n    // Existing active boost authorizes continuous charging for the WHOLE time price is below threshold.\n    // It does not further optimize between sub-threshold prices.\n    if (active && production && boostEnabled && eligible && priceWin.known && priceWin.cheap &&\n        x.soc!==null && x.soc<boostTarget) {\n        boostAuthorized=true;\n\n        // If the broker still reports original limit immediately after activation, retry target 80.\n        if (original!==null && x.limit!==null && approx(x.limit,original) && !approx(original,boostTarget)) {\n            limitMsgs.push({entity_id:car.limitEntity,value:boostTarget,car:key,reason:'cheap_boost_target_retry'});\n        }\n\n        helperMsgs.push(setDateTimeMsg(`input_datetime.${key}_cheap_boost_window_end_value`,priceWin.end));\n        helperMsgs.push(setTextMsg(`input_text.${key}_cheap_boost_status_value`,'active'));\n    }\n\n    boost[key]={\n        active,suppressed,original,authorized:boostAuthorized,\n        currentPrice:priceWin.price,cheap:priceWin.cheap,windowEnd:priceWin.end,\n        availableKw:x.availableKw,status,reason\n    };\n\n    // --------------------------------------------------------\n    // Normal planner + live target guard, aware of Cheap Boost.\n    // --------------------------------------------------------\n    // During active/just-activated boost, effective target is boostTarget.\n    // This prevents live target guard from treating e.g. 70/70 as completed\n    // before the temporary Tesla limit update is reflected by the broker.\n    const effectiveTarget=boostAuthorized || active ? boostTarget : x.limit;\n    const liveTargetReached=(x.soc!==null && effectiveTarget!==null && x.soc>=effectiveTarget);\n\n    if (liveTargetReached && !(active && x.soc<boostTarget)) {\n        helperMsgs.push(setBoolMsg(`input_boolean.${key}_optimizer_charge_authorized`,false));\n\n        // Only invalidate the normal plan if no boost is still active.\n        if (!active) {\n            helperMsgs.push(setBoolMsg(`input_boolean.${key}_charge_plan_valid`,false));\n            helperMsgs.push(setNumMsg(`input_number.${key}_charge_missing_kwh_value`,0));\n            helperMsgs.push(setNumMsg(`input_number.${key}_charge_estimated_duration_value`,0));\n            helperMsgs.push(setNumMsg(`input_number.${key}_charge_estimated_cost_value`,0));\n            helperMsgs.push(setTextMsg(`input_text.${key}_charge_rule_value`,'target_reached'));\n            helperMsgs.push(setTextMsg(`input_text.${key}_charge_optimizer_state_value`,'target_reached'));\n            helperMsgs.push(setTextMsg(`input_text.${key}_charge_optimizer_reason_value`,\n                `Live SoC ${x.soc}% has reached charge limit ${x.limit}%. Old plan invalidated immediately.`));\n        }\n\n        if (production && actual===true && eligible && !boostAuthorized) {\n            offMsgs.push({entity_id:car.switchEntity,car:key});\n            logMsgs.push(headerRow('target_reached_stop',key,car,mode,s,\n                `Live SoC ${x.soc}% reached target ${effectiveTarget}%; stopping.`));\n        }\n        continue;\n    }\n\n    const normalEligible=!!s && !!s.controlEligible && x.cable;\n    const normalNeedsCharge=!!s && s.soc!==null && s.target!==null && Number(s.soc)<Number(s.target);\n    const normalActionable=!!s && (s.planValid || s.planActionable);\n    const plannedNow=normalActionable && desiredNow(s,nowMs);\n    const normalAuthorized=production && healthy && normalEligible && normalNeedsCharge && plannedNow;\n\n    // A planned slot should never fail silently. If the slot is active but health blocks\n    // normal authorization, record exactly why in CSV.\n    if (production && normalEligible && normalNeedsCharge && plannedNow && !healthy && !boostAuthorized) {\n        const activeSlot=s?.selectedSlots?.find(slot=>{\n            const a=Date.parse(slot.start), b=Date.parse(slot.end);\n            return Number.isFinite(a)&&Number.isFinite(b)&&nowMs>=a&&nowMs<b;\n        });\n        const blockId=`${activeSlot?.start||'unknown'}|health`;\n        const ageMin=Number.isFinite(summaryAgeMs) ? (summaryAgeMs/60000).toFixed(1) : 'unknown';\n        logBlockedOnce(\n            key,car,s,\n            `Scheduled charging slot is active but optimizer health is false. Plan age ${ageMin} min; maximum allowed age ${(maxSummaryAgeMs/60000).toFixed(0)} min.`,\n            blockId\n        );\n    }\n\n    const authorized=boostAuthorized || normalAuthorized;\n    helperMsgs.push(setBoolMsg(`input_boolean.${key}_optimizer_charge_authorized`,authorized));\n\n    // Clear previous blocked-start marker once the slot is authorized or no longer active.\n    if (authorized || !plannedNow) {\n        flow.set(`evopt_blocked_${key}`,null);\n    }\n\n    if (!production) continue;\n\n    if (authorized) {\n        if (actual!==true) {\n            onMsgs.push({entity_id:car.switchEntity,car:key});\n            logMsgs.push(headerRow(\n                boostAuthorized?'cheap_boost_charge_start':'executor_start',\n                key,car,mode,s,\n                boostAuthorized\n                    ? `Cheap Boost authorized: current price ${priceWin.price?.toFixed(4)} DKK/kWh is below ${boostThreshold.toFixed(2)}.`\n                    : `Current time is inside a selected price slot; starting ${car.switchEntity}.`\n            ));\n        }\n        continue;\n    }\n\n    // At known site, if healthy and neither normal plan nor boost authorizes charging, stop.\n    if (healthy && normalEligible && actual===true) {\n        offMsgs.push({entity_id:car.switchEntity,car:key});\n        logMsgs.push(headerRow(watchdog?'watchdog_stop':'executor_stop',key,car,mode,s,\n            watchdog\n                ? 'Watchdog: charging is active but optimizer authorization is false.'\n                : 'Neither normal price plan nor Cheap Boost authorizes charging now.'));\n    }\n}\n\n// Debug payload\nmsg.payload={\n    mode,production,healthy,watchdog,\n    health:{\n        summaryAgeMinutes:Number.isFinite(summaryAgeMs)?Number((summaryAgeMs/60000).toFixed(1)):null,\n        maxSummaryAgeMinutes:maxSummaryAgeMs/60000\n    },\n    cheapBoost:{\n        enabled:boostEnabled,\n        thresholdDkkPerKwh:boostThreshold,\n        targetPct:boostTarget,\n        cars:boost\n    },\n    summaryAgeSeconds:Number.isFinite(summaryAgeMs)?Math.round(summaryAgeMs/1000):null,\n    cars:Object.fromEntries(Object.keys(cars).map(key=>{\n        const s=summaries[key];\n        return [key,{\n            controlSite:live[key]?.site||'none',\n            connected:live[key]?.cable??null,\n            liveSoc:live[key]?.soc??null,\n            liveTarget:live[key]?.limit??null,\n            planValid:s?.planValid??false,\n            planActionable:s?.planActionable??false,\n            plannedNow:s?desiredNow(s,nowMs):false,\n            cheapBoostActive:boost[key]?.active??false,\n            cheapBoostAuthorized:boost[key]?.authorized??false\n        }];\n    }))\n};\n\nreturn [helperMsgs,onMsgs,offMsgs,logMsgs,msg,limitMsgs];\n",
+    "outputs": 6,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1740,
+    "y": 430,
+    "wires": [
+      [
+        "routeaction"
+      ],
+      [
+        "tesla_on"
+      ],
+      [
+        "tesla_off"
+      ],
+      [
+        "csvfile"
+      ],
+      [
+        "executor_debug"
+      ],
+      [
+        "tesla_limit"
+      ]
+    ]
+  },
+  {
+    "id": "tesla_on",
+    "type": "api-call-service",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Tesla Fleet START charging",
+    "server": "27dce734.128628",
+    "version": 7,
+    "debugenabled": false,
+    "action": "switch.turn_on",
+    "floorId": [],
+    "areaId": [],
+    "deviceId": [],
+    "entityId": [
+      "{{entity_id}}"
+    ],
+    "labelId": [],
+    "data": "{}",
+    "dataType": "json",
+    "mergeContext": "",
+    "mustacheAltTags": false,
+    "outputProperties": [],
+    "queue": "none",
+    "blockInputOverrides": false,
+    "domain": "switch",
+    "service": "turn_on",
+    "x": 2060,
+    "y": 410,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "tesla_off",
+    "type": "api-call-service",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Tesla Fleet STOP charging",
+    "server": "27dce734.128628",
+    "version": 7,
+    "debugenabled": false,
+    "action": "switch.turn_off",
+    "floorId": [],
+    "areaId": [],
+    "deviceId": [],
+    "entityId": [
+      "{{entity_id}}"
+    ],
+    "labelId": [],
+    "data": "{}",
+    "dataType": "json",
+    "mergeContext": "",
+    "mustacheAltTags": false,
+    "outputProperties": [],
+    "queue": "none",
+    "blockInputOverrides": false,
+    "domain": "switch",
+    "service": "turn_off",
+    "x": 2060,
+    "y": 470,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "executor_debug",
+    "type": "debug",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Charge Executor status",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 2060,
+    "y": 530,
+    "wires": []
+  },
+  {
+    "id": "executor_tick",
+    "type": "inject",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Executor check every 1 min",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "60",
+    "crontab": "",
+    "once": true,
+    "onceDelay": 15,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 1410,
+    "y": 430,
+    "wires": [
+      [
+        "executor"
+      ]
+    ]
+  },
+  {
+    "id": "watchdog_tick",
+    "type": "inject",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Watchdog every 5 min",
+    "props": [
+      {
+        "p": "_watchdog",
+        "v": "true",
+        "vt": "bool"
+      }
+    ],
+    "repeat": "300",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 1420,
+    "y": 490,
+    "wires": [
+      [
+        "executor"
+      ]
+    ]
+  },
+  {
+    "id": "cost_accum",
+    "type": "function",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Accumulate actual kWh + cost v0.5",
+    "func": "\n// v0.5 actual charging energy/cost accumulator.\n// Counts charging at known configured sites regardless of whether optimizer or native fallback started it.\n// Uses Tesla-reported AC charging power as current fallback measurement.\n// Later a site/charger meter can replace the power source without changing utility_meter history.\n\nconst ha = global.get('homeassistant');\nconst states =\n    (ha && ha.homeAssistant && ha.homeAssistant.states) ||\n    (ha && ha.states) || {};\nconst priceSources = flow.get('evopt_price_sources') || {};\nconst now = Date.now();\n\nfunction st(e) {\n    const x=states[e];\n    if (!x) return null;\n    const s=String(x.state??'').trim();\n    if (!s || ['unknown','unavailable','none','null'].includes(s.toLowerCase())) return null;\n    return s;\n}\nfunction num(e) {\n    const s=st(e);\n    if (s===null) return null;\n    const n=Number(String(s).replace(',','.'));\n    return Number.isFinite(n)?n:null;\n}\nfunction bool(e) {\n    const s=st(e);\n    if (s===null) return null;\n    const v=s.toLowerCase();\n    if (['on','true','yes','connected','charging'].includes(v)) return true;\n    if (['off','false','no','disconnected','stopped','complete'].includes(v)) return false;\n    return null;\n}\nfunction firstNum(a){ for(const e of a){const n=num(e); if(n!==null)return {value:n,entity:e};} return {value:null,entity:null};}\nfunction firstBool(a){ for(const e of a){const b=bool(e); if(b!==null)return {value:b,entity:e};} return {value:null,entity:null};}\nfunction firstState(a){ for(const e of a){const s=st(e); if(s!==null)return {value:s,entity:e};} return {value:null,entity:null};}\nfunction locSite(v) {\n    const l=String(v||'').trim().toLowerCase().replace(/_/g,' ').replace(/\\s+/g,' ');\n    if (l==='home') return 'anemonevej';\n    if (['i.a. møllersvej','i.a møllersvej','i.a. mollersvej','i.a mollersvej'].includes(l)) return 'ia_moellersvej';\n    return 'none';\n}\nfunction priceAt(source, ts) {\n    const r=priceSources[source];\n    if (!r || !Array.isArray(r.slots)) return null;\n    for (const x of r.slots) {\n        const a=Date.parse(x.start), b=Date.parse(x.end), p=Number(x.price);\n        if (Number.isFinite(a)&&Number.isFinite(b)&&Number.isFinite(p)&&ts>=a&&ts<b) return p;\n    }\n    return null;\n}\nfunction safe(v,max=600){return String(v??'').replace(/[\\r\\n]+/g,' ').replace(/\"/g,\"'\").slice(0,max);}\nfunction setNum(entity_id,value){return {ha_action:'input_number.set_value',entity_id,value:Number(value)};}\n\nconst cars={\n    blue_flux:{\n        name:'Blue Flux',\n        location:['sensor.blue_flux_broker_location','device_tracker.blue_flux_location'],\n        connected:['binary_sensor.blue_flux_broker_charge_cable_connected','binary_sensor.blue_flux_charge_cable'],\n        charging:['sensor.blue_flux_broker_charger_state','sensor.blue_flux_charging'],\n        power:['sensor.blue_flux_broker_charger_power','sensor.blue_flux_charger_power'],\n        energyTotal:'input_number.blue_flux_charge_actual_energy_total_value',\n        costTotal:'input_number.blue_flux_charge_actual_cost_total_value'\n    },\n    ellingo:{\n        name:'ElLingo',\n        location:['sensor.ellingo_broker_location','device_tracker.ellingo_location'],\n        connected:['binary_sensor.ellingo_broker_charge_cable_connected','binary_sensor.ellingo_charge_cable'],\n        charging:['sensor.ellingo_broker_charger_state','sensor.ellingo_charging'],\n        power:['sensor.ellingo_broker_charger_power','sensor.ellingo_charger_power_2'],\n        energyTotal:'input_number.ellingo_charge_actual_energy_total_value',\n        costTotal:'input_number.ellingo_charge_actual_cost_total_value'\n    }\n};\n\nconst actions=[], logs=[], debug={};\n\nfor (const [key,c] of Object.entries(cars)) {\n    const location=firstState(c.location).value;\n    const site=locSite(location);\n    const connected=firstBool(c.connected).value===true;\n    const powerPick=firstNum(c.power);\n    let powerKw=powerPick.value;\n\n    // Some integrations report W instead of kW. Normalize large values.\n    if (powerKw!==null && powerKw>100) powerKw=powerKw/1000;\n\n    const chargeState=firstState(c.charging).value;\n    let charging=false;\n    if (chargeState) {\n        const v=String(chargeState).toLowerCase();\n        charging=(v==='charging' || (v.includes('charg')&&!v.includes('not')&&!v.includes('dis')));\n    }\n    if (!charging && powerKw!==null && powerKw>0.05) charging=true;\n\n    let priceSource='real_energy';\n    if (site==='anemonevej') priceSource=st('input_text.ev_site_anemonevej_price_source')||'real_energy';\n    if (site==='ia_moellersvej') priceSource=st('input_text.ev_site_ia_moellersvej_price_source')||'real_energy';\n    const price=priceAt(priceSource,now);\n\n    const ctxKey=`evopt_acc_${key}`;\n    const prev=flow.get(ctxKey);\n    flow.set(ctxKey,{ts:now,powerKw:powerKw??0});\n\n    let dtHours=0;\n    if (prev && Number.isFinite(prev.ts)) {\n        const dtMs=now-prev.ts;\n        // Ignore gaps > 3 minutes to avoid inventing energy after Node-RED/HA downtime.\n        if (dtMs>0 && dtMs<=180000) dtHours=dtMs/3600000;\n    }\n\n    let addKwh=0, addCost=0, counted=false;\n    if (site!=='none' && connected && charging && powerKw!==null && powerKw>0 && price!==null && dtHours>0) {\n        // Trapezoid integration when previous power is available.\n        const prevP=prev && Number.isFinite(prev.powerKw) ? Math.max(0,prev.powerKw) : powerKw;\n        const avgP=(prevP+powerKw)/2;\n        addKwh=avgP*dtHours;\n        addCost=addKwh*price;\n\n        const oldE=num(c.energyTotal)??0;\n        const oldC=num(c.costTotal)??0;\n        actions.push(setNum(c.energyTotal,Math.round((oldE+addKwh)*1000)/1000));\n        actions.push(setNum(c.costTotal,Math.round((oldC+addCost)*1000)/1000));\n        counted=true;\n    }\n\n    if (counted) {\n        const row=[\n            new Date(now).toISOString(),'actual_charge_cost_v1_1',key,c.name,'',\n            '','',location||'',site,site,connected?'1':'0',chargeState||'',\n            '','','','','',powerKw??'',priceSource,'', '', '', '', '',\n            addCost.toFixed(4),price.toFixed(4),'',\n            `${addKwh.toFixed(4)} kWh in ${(dtHours*60).toFixed(2)} min`,\n            'actual_cost_accumulator',\n            `Added ${addKwh.toFixed(4)} kWh / ${addCost.toFixed(4)} DKK using ${powerKw.toFixed(2)} kW @ ${price.toFixed(4)} DKK/kWh`,\n            '','','',powerPick.entity||''\n        ];\n        logs.push({payload:row.map(v=>`\"${safe(v)}\"`).join(';')});\n    }\n\n    debug[key]={\n        location,site,connected,charging,powerKw,\n        priceSource,currentPrice:price,dtMinutes:dtHours*60,\n        addedKwh:addKwh,addedCostDkk:addCost,counted\n    };\n}\n\nmsg.payload=debug;\nreturn [actions,logs,msg];\n",
+    "outputs": 3,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1740,
+    "y": 740,
+    "wires": [
+      [
+        "routeaction"
+      ],
+      [
+        "csvfile"
+      ],
+      [
+        "cost_debug"
+      ]
+    ]
+  },
+  {
+    "id": "cost_tick",
+    "type": "inject",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Actual cost sample every 1 min",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "60",
+    "crontab": "",
+    "once": true,
+    "onceDelay": 20,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 1430,
+    "y": 740,
+    "wires": [
+      [
+        "cost_accum"
+      ]
+    ]
+  },
+  {
+    "id": "cost_debug",
+    "type": "debug",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Actual charging cost status",
+    "active": false,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 2050,
+    "y": 740,
+    "wires": []
+  },
+  {
+    "id": "broker_event_trigger",
+    "type": "server-state-changed",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Broker EV changes → replan",
+    "server": "27dce734.128628",
+    "version": 6,
+    "outputs": 1,
+    "exposeAsEntityConfig": "",
+    "entities": {
+      "entity": [
+        "sensor.blue_flux_broker_battery_level",
+        "sensor.blue_flux_broker_charge_limit_actual",
+        "sensor.blue_flux_broker_location",
+        "binary_sensor.blue_flux_broker_charge_cable_connected",
+        "sensor.ellingo_broker_battery_level",
+        "sensor.ellingo_broker_charge_limit_actual",
+        "sensor.ellingo_broker_location",
+        "binary_sensor.ellingo_broker_charge_cable_connected"
+      ],
+      "substring": [],
+      "regex": []
+    },
+    "outputInitially": false,
+    "stateType": "str",
+    "ifState": "",
+    "ifStateType": "str",
+    "ifStateOperator": "is",
+    "outputOnlyOnStateChange": true,
+    "for": "0",
+    "forType": "num",
+    "forUnits": "seconds",
+    "ignorePrevStateNull": false,
+    "ignorePrevStateUnknown": false,
+    "ignorePrevStateUnavailable": false,
+    "ignoreCurrentStateUnknown": false,
+    "ignoreCurrentStateUnavailable": false,
+    "outputProperties": [
+      {
+        "property": "payload",
+        "propertyType": "msg",
+        "value": "string",
+        "valueType": "entityState"
+      },
+      {
+        "property": "data",
+        "propertyType": "msg",
+        "value": "",
+        "valueType": "eventData"
+      },
+      {
+        "property": "topic",
+        "propertyType": "msg",
+        "value": "$entity().entity_id",
+        "valueType": "jsonata"
+      }
+    ],
+    "x": 180,
+    "y": 250,
+    "wires": [
+      [
+        "broker_event_debounce"
+      ]
+    ]
+  },
+  {
+    "id": "broker_event_debounce",
+    "type": "function",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Debounce broker replan 2s",
+    "func": "\n// Coalesce broker-driven EV changes into one full optimizer calculation.\n// Only broker presentation entities reach this node.\n// Charge-limit and SoC changes therefore never depend on raw Fleet/Custom events.\n\nconst waitMs = 2000;\n\nconst oldTimer = context.get('timer');\nif (oldTimer) clearTimeout(oldTimer);\n\nconst entity = msg.topic || msg.data?.entity_id || 'broker_change';\ncontext.set('last_entity', String(entity));\ncontext.set('last_payload', msg.payload);\n\nconst timer = setTimeout(() => {\n    const trigger = context.get('last_entity') || 'broker_change';\n    node.send({\n        topic: trigger,\n        trigger_source: 'broker_event',\n        optimizer_recalc_reason: trigger,\n        payload: {\n            reason: 'broker_entity_changed',\n            entity_id: trigger\n        }\n    });\n    context.set('timer', null);\n    node.status({fill:'green',shape:'dot',text:`replan: ${trigger}`});\n}, waitMs);\n\ncontext.set('timer', timer);\nnode.status({fill:'blue',shape:'dot',text:`waiting ${waitMs/1000}s: ${entity}`});\nreturn null;\n",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 490,
+    "y": 250,
+    "wires": [
+      [
+        "price_discover",
+        "broker_event_debug"
+      ]
+    ]
+  },
+  {
+    "id": "broker_event_debug",
+    "type": "debug",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Broker replan trigger",
+    "active": false,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "optimizer_recalc_reason",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 770,
+    "y": 290,
+    "wires": []
+  },
+  {
+    "id": "cmt_event_driven",
+    "type": "comment",
+    "z": "a10f0e0f4bf34c01",
+    "name": "EVENT DRIVEN: broker only → full replan",
+    "info": "Triggers:\n- sensor.blue_flux_broker_battery_level\n- sensor.blue_flux_broker_charge_limit_actual\n- sensor.blue_flux_broker_location\n- binary_sensor.blue_flux_broker_charge_cable_connected\n- sensor.ellingo_broker_battery_level\n- sensor.ellingo_broker_charge_limit_actual\n- sensor.ellingo_broker_location\n- binary_sensor.ellingo_broker_charge_cable_connected\n\nRaw Tesla Fleet/Custom entities are deliberately NOT event triggers.",
+    "x": 270,
+    "y": 210,
+    "wires": []
+  },
+  {
+    "id": "price_tol_trigger",
+    "type": "server-state-changed",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Price tolerance changed → replan",
+    "server": "27dce734.128628",
+    "version": 6,
+    "outputs": 1,
+    "exposeAsEntityConfig": "",
+    "entities": {
+      "entity": [
+        "input_number.ev_charge_price_equal_tolerance_ore_per_kwh"
+      ],
+      "substring": [],
+      "regex": []
+    },
+    "outputInitially": false,
+    "stateType": "str",
+    "ifState": "",
+    "ifStateType": "str",
+    "ifStateOperator": "is",
+    "outputOnlyOnStateChange": true,
+    "for": "0",
+    "forType": "num",
+    "forUnits": "seconds",
+    "ignorePrevStateNull": true,
+    "ignorePrevStateUnknown": true,
+    "ignorePrevStateUnavailable": true,
+    "ignoreCurrentStateUnknown": false,
+    "ignoreCurrentStateUnavailable": false,
+    "outputProperties": [
+      {
+        "property": "payload",
+        "propertyType": "msg",
+        "value": "string",
+        "valueType": "entityState"
+      },
+      {
+        "property": "topic",
+        "propertyType": "msg",
+        "value": "input_number.ev_charge_price_equal_tolerance_ore_per_kwh",
+        "valueType": "str"
+      }
+    ],
+    "x": 210,
+    "y": 360,
+    "wires": [
+      [
+        "price_discover"
+      ]
+    ]
+  },
+  {
+    "id": "price_tol_comment",
+    "type": "comment",
+    "z": "a10f0e0f4bf34c01",
+    "name": "≤ 0.5 øre/kWh difference = same price → earliest wins",
+    "info": "Configure with input_number.ev_charge_price_equal_tolerance_ore_per_kwh.\nExample: 0.4054 vs 0.4044 DKK/kWh differs by 0.001 DKK = 0.1 øre/kWh.\nWith 0.5 øre tolerance, the earlier/current slot is selected.",
+    "x": 300,
+    "y": 400,
+    "wires": []
+  },
+  {
+    "id": "tesla_limit",
+    "type": "api-call-service",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Tesla Fleet SET charge limit",
+    "server": "27dce734.128628",
+    "version": 7,
+    "debugenabled": false,
+    "action": "number.set_value",
+    "floorId": [],
+    "areaId": [],
+    "deviceId": [],
+    "entityId": [
+      "{{entity_id}}"
+    ],
+    "labelId": [],
+    "data": "{\"value\":{{value}}}",
+    "dataType": "json",
+    "mergeContext": "",
+    "mustacheAltTags": false,
+    "outputProperties": [],
+    "queue": "none",
+    "blockInputOverrides": false,
+    "domain": "number",
+    "service": "set_value",
+    "x": 2080,
+    "y": 590,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "cheap_boost_config_trigger",
+    "type": "server-state-changed",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Cheap Boost config changed → evaluate",
+    "server": "27dce734.128628",
+    "version": 6,
+    "outputs": 1,
+    "exposeAsEntityConfig": "",
+    "entities": {
+      "entity": [
+        "input_boolean.ev_charge_cheap_boost_enabled",
+        "input_number.ev_charge_cheap_boost_price_threshold_dkk_per_kwh",
+        "input_number.ev_charge_cheap_boost_target_pct"
+      ],
+      "substring": [],
+      "regex": []
+    },
+    "outputInitially": false,
+    "stateType": "str",
+    "ifState": "",
+    "ifStateType": "str",
+    "ifStateOperator": "is",
+    "outputOnlyOnStateChange": true,
+    "for": "0",
+    "forType": "num",
+    "forUnits": "seconds",
+    "ignorePrevStateNull": true,
+    "ignorePrevStateUnknown": true,
+    "ignorePrevStateUnavailable": true,
+    "ignoreCurrentStateUnknown": false,
+    "ignoreCurrentStateUnavailable": false,
+    "outputProperties": [
+      {
+        "property": "payload",
+        "propertyType": "msg",
+        "value": "string",
+        "valueType": "entityState"
+      },
+      {
+        "property": "topic",
+        "propertyType": "msg",
+        "value": "$entity().entity_id",
+        "valueType": "jsonata"
+      }
+    ],
+    "x": 1450,
+    "y": 650,
+    "wires": [
+      [
+        "executor"
+      ]
+    ]
+  },
+  {
+    "id": "cheap_boost_comment",
+    "type": "comment",
+    "z": "a10f0e0f4bf34c01",
+    "name": "CHEAP BOOST: <0.50 DKK/kWh → temporary target 80%",
+    "info": "Rules:\n1) Only valid charging site + cable + Production.\n2) Normal charge limit must be below boost target.\n3) If current SoC already reached normal limit: boost immediately and charge continuously while price is below threshold.\n4) If current SoC is below normal limit: only boost if current contiguous cheap window is long enough to reach boost target.\n5) If denied for insufficient window, suppress boost until price rises above threshold; do not reconsider mid-window.\n6) At end of cheap window / boost target / leave site / disable: restore saved original limit.\n7) External/manual charge-limit change during boost cancels boost WITHOUT restoring old value.\n8) Long trip >=85% is untouched because Cheap Boost only activates when current limit < boost target.",
+    "x": 1690,
+    "y": 610,
+    "wires": []
+  },
+  {
+    "id": "cmt_stable_price",
+    "type": "comment",
+    "z": "a10f0e0f4bf34c01",
+    "name": "PRICE ORDER: cheapest group → earliest time",
+    "info": "Example with tolerance 0.5 øre/kWh:\n11:45 = 1.1684 DKK/kWh\n10:15 = 1.1734 DKK/kWh\n\nDifference = 0.0050 DKK = 0.5 øre, so both belong to the same effective price group.\n10:15 is selected first because it occurs earlier.\n\nThis grouping is deterministic and avoids comparator instability.",
+    "x": 370,
+    "y": 450,
+    "wires": []
+  },
+  {
+    "id": "odometer_accum",
+    "type": "function",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Accumulate driven km v1.2",
+    "func": "\n// EV Charge Optimizer v1.2 - odometer delta accumulator.\n// First valid reading establishes a baseline and adds 0 km.\n// Later increases are accumulated into a persistent lifetime \"distance driven since v1.2 install\" counter.\n// Utility Meter in HA derives day/week/month/year from that monotonically increasing counter.\n\nconst ha=global.get('homeassistant');\nconst states=\n    (ha && ha.homeAssistant && ha.homeAssistant.states) ||\n    (ha && ha.states) || {};\n\nfunction state(entity) {\n    const x=states[entity];\n    if (!x) return null;\n    const s=String(x.state??'').trim();\n    if (!s || ['unknown','unavailable','none','null'].includes(s.toLowerCase())) return null;\n    return s;\n}\nfunction num(entity) {\n    const s=state(entity);\n    if (s===null) return null;\n    const n=Number(String(s).replace(',','.'));\n    return Number.isFinite(n)?n:null;\n}\nfunction bool(entity) {\n    const s=state(entity);\n    if (s===null) return null;\n    return ['on','true','yes'].includes(s.toLowerCase());\n}\nfunction setNum(entity_id,value){return {ha_action:'input_number.set_value',entity_id,value:Number(value)};}\nfunction setText(entity_id,value){return {ha_action:'input_text.set_value',entity_id,value:String(value).slice(0,255)};}\nfunction setBool(entity_id,on){return {ha_action:on?'input_boolean.turn_on':'input_boolean.turn_off',entity_id};}\nfunction safe(v,max=500){return String(v??'').replace(/[\\r\\n]+/g,' ').replace(/\"/g,\"'\").slice(0,max);}\nfunction normHay(s){return String(s||'').toLowerCase().replace(/[_-]+/g,' ');}\n\nfunction normalizeKm(entity,value) {\n    const unit=String(states[entity]?.attributes?.unit_of_measurement||'km').toLowerCase();\n    if (unit==='mi' || unit==='mile' || unit==='miles') return value*1.609344;\n    return value;\n}\n\nfunction discover(carKey,display,manual,explicit) {\n    if (manual) {\n        const n=num(manual);\n        if (n!==null) return {entity:manual,valueKm:normalizeKm(manual,n),mode:'manual'};\n    }\n\n    for (const e of explicit) {\n        const n=num(e);\n        if (n!==null) return {entity:e,valueKm:normalizeKm(e,n),mode:'explicit'};\n    }\n\n    const carTokens=carKey==='blue_flux'\n        ? ['blue flux','blueflux']\n        : ['ellingo','el lingo','el_lingo'];\n\n    const candidates=[];\n    for (const [id,obj] of Object.entries(states)) {\n        const friendly=String(obj?.attributes?.friendly_name||'');\n        const hay=normHay(`${id} ${friendly}`);\n        const isOdo=hay.includes('odometer') || hay.includes('mileage');\n        const carMatch=carTokens.some(t=>hay.includes(normHay(t)));\n        if (!isOdo || !carMatch) continue;\n        const n=num(id);\n        if (n===null) continue;\n\n        let score=0;\n        if (id.startsWith('sensor.')) score+=10;\n        if (hay.includes('odometer')) score+=20;\n        if (id.includes(carKey)) score+=30;\n        if (friendly.toLowerCase().includes(display.toLowerCase())) score+=20;\n        candidates.push({entity:id,valueKm:normalizeKm(id,n),mode:'auto',score});\n    }\n\n    candidates.sort((a,b)=>b.score-a.score);\n    return candidates[0]||null;\n}\n\nconst cars={\n    blue_flux:{\n        name:'Blue Flux',\n        manual:'input_text.blue_flux_odometer_entity',\n        source:'input_text.blue_flux_odometer_source_value',\n        status:'input_text.blue_flux_odometer_status_value',\n        init:'input_boolean.blue_flux_odometer_initialized',\n        last:'input_number.blue_flux_odometer_last_value',\n        total:'input_number.blue_flux_driven_distance_total_value',\n        explicit:['sensor.blue_flux_odometer']\n    },\n    ellingo:{\n        name:'ElLingo',\n        manual:'input_text.ellingo_odometer_entity',\n        source:'input_text.ellingo_odometer_source_value',\n        status:'input_text.ellingo_odometer_status_value',\n        init:'input_boolean.ellingo_odometer_initialized',\n        last:'input_number.ellingo_odometer_last_value',\n        total:'input_number.ellingo_driven_distance_total_value',\n        explicit:['sensor.ellingo_odometer','sensor.ellingo_odometer_2']\n    }\n};\n\nconst actions=[],logs=[],debug={};\n\nfor (const [key,c] of Object.entries(cars)) {\n    const manual=state(c.manual);\n    const found=discover(key,c.name,manual,c.explicit);\n\n    if (!found) {\n        actions.push(setText(c.status,'odometer_not_found'));\n        actions.push(setText(c.source,'none'));\n        debug[key]={status:'odometer_not_found',manual:manual||null};\n        continue;\n    }\n\n    const current=Math.round(found.valueKm*100)/100;\n    const oldSource=state(c.source);\n    const initialized=bool(c.init)===true;\n    const last=num(c.last);\n    const oldTotal=num(c.total)??0;\n\n    // New source or first read: establish baseline only.\n    if (!initialized || !last || oldSource!==found.entity) {\n        actions.push(setNum(c.last,current));\n        actions.push(setText(c.source,found.entity));\n        actions.push(setText(c.status,`baseline ${current.toFixed(2)} km via ${found.entity}`));\n        actions.push(setBool(c.init,true));\n        debug[key]={status:'baseline',source:found.entity,odometerKm:current,totalKm:oldTotal};\n        continue;\n    }\n\n    let delta=current-last;\n\n    // Odometer should never go backwards. If it does, rebase safely without adding km.\n    if (delta < -0.01) {\n        actions.push(setNum(c.last,current));\n        actions.push(setText(c.status,`odometer decreased ${last.toFixed(2)}→${current.toFixed(2)} km; rebased, no distance added`));\n        logs.push({payload:[\n            new Date().toISOString(),'odometer_rebase_v1_2',key,c.name,'','','','','','','','','','','','','','','','','','','','','','','','',\n            'odometer_rebase',\n            `Odometer decreased from ${last.toFixed(2)} to ${current.toFixed(2)} km; no distance counted.`,\n            found.entity,'','',''\n        ].map(v=>`\"${safe(v)}\"`).join(';')});\n        debug[key]={status:'rebase',source:found.entity,odometerKm:current,lastKm:last};\n        continue;\n    }\n\n    // Protect against unit/source glitches.\n    if (delta > 5000) {\n        actions.push(setText(c.status,`odometer jump ${delta.toFixed(2)} km rejected`));\n        debug[key]={status:'outlier_rejected',source:found.entity,odometerKm:current,lastKm:last,deltaKm:delta};\n        continue;\n    }\n\n    if (delta >= 0.01) {\n        const newTotal=Math.round((oldTotal+delta)*100)/100;\n        actions.push(setNum(c.total,newTotal));\n        actions.push(setNum(c.last,current));\n        actions.push(setText(c.source,found.entity));\n        actions.push(setText(c.status,`ok +${delta.toFixed(2)} km; odometer ${current.toFixed(2)} km`));\n\n        logs.push({payload:[\n            new Date().toISOString(),'odometer_delta_v1_2',key,c.name,'','','','','','','','','','','','','','','','','','','','','','','','',\n            'odometer_delta',\n            `Added ${delta.toFixed(2)} km from ${found.entity}; odometer ${current.toFixed(2)} km; cumulative tracked ${newTotal.toFixed(2)} km.`,\n            found.entity,'','',''\n        ].map(v=>`\"${safe(v)}\"`).join(';')});\n\n        debug[key]={status:'ok',source:found.entity,odometerKm:current,deltaKm:delta,totalKm:newTotal};\n    } else {\n        actions.push(setText(c.source,found.entity));\n        actions.push(setText(c.status,`ok; odometer ${current.toFixed(2)} km`));\n        debug[key]={status:'unchanged',source:found.entity,odometerKm:current,totalKm:oldTotal};\n    }\n}\n\nmsg.payload=debug;\nreturn [actions,logs,msg];\n",
+    "outputs": 3,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1730,
+    "y": 840,
+    "wires": [
+      [
+        "routeaction"
+      ],
+      [
+        "csvfile"
+      ],
+      [
+        "odometer_debug"
+      ]
+    ]
+  },
+  {
+    "id": "odometer_tick",
+    "type": "inject",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Odometer check every 5 min",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "300",
+    "crontab": "",
+    "once": true,
+    "onceDelay": 25,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 1430,
+    "y": 840,
+    "wires": [
+      [
+        "odometer_accum"
+      ]
+    ]
+  },
+  {
+    "id": "odometer_debug",
+    "type": "debug",
+    "z": "a10f0e0f4bf34c01",
+    "name": "Odometer accumulator status",
+    "active": false,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 2040,
+    "y": 840,
+    "wires": []
+  },
+  {
+    "id": "cmt_v12",
+    "type": "comment",
+    "z": "a10f0e0f4bf34c01",
+    "name": "v1.2: planned slots + daily/weekly/monthly/yearly km",
+    "info": "Planned slot strings are published to HA per car.\nDistance tracking uses odometer deltas and persistent cumulative counters. First read is baseline only. HA utility_meter derives day/week/month/year per car and combined.\nBlue Flux known source: sensor.blue_flux_odometer. ElLingo is auto-discovered; manual override is available via input_text.ellingo_odometer_entity.",
+    "x": 1640,
+    "y": 800,
+    "wires": []
+  },
+  {
+    "id": "27dce734.128628",
+    "type": "server",
+    "name": "Home Assistant",
+    "addon": true,
+    "rejectUnauthorizedCerts": true,
+    "ha_boolean": "",
+    "connectionDelay": false,
+    "cacheJson": false,
+    "heartbeat": false,
+    "heartbeatInterval": "",
+    "statusSeparator": "",
+    "enableGlobalContextStore": false
+  },
+  {
+    "id": "c601ffef0e72864f",
+    "type": "global-config",
+    "env": [],
+    "modules": {
+      "node-red-contrib-home-assistant-websocket": "0.81.0"
+    }
+  }
+]
